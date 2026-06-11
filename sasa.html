@@ -1,0 +1,1556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PromptCanvas — 広告レイアウトビルダー</title>
+<style>
+/* ── リセット & 基盤 ── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;
+  --surface:#181c27;
+  --surface2:#1e2333;
+  --surface3:#252a3d;
+  --border:#2c3250;
+  --border2:#3a4060;
+  --accent:#5b7fff;
+  --accent2:#7c5bff;
+  --accent-glow:rgba(91,127,255,.25);
+  --orange:#f59e42;
+  --orange-glow:rgba(245,158,66,.2);
+  --green:#34d399;
+  --red:#f87171;
+  --text:#e8ecf4;
+  --text2:#9aa3bf;
+  --text3:#5c657d;
+  --radius:10px;
+  --radius-sm:6px;
+  --shadow:0 4px 24px rgba(0,0,0,.5);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter','Hiragino Sans','Yu Gothic',system-ui,sans-serif;font-size:13px;line-height:1.5}
+
+/* ── トップバー ── */
+.topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:100}
+.topbar-logo{font-size:15px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+.topbar-logo span{font-size:10px;-webkit-text-fill-color:var(--text3);font-weight:500;margin-left:6px;letter-spacing:.05em}
+.topbar-sep{flex:1}
+.topbar-fmt{display:flex;align-items:center;gap:8px}
+.topbar-fmt label{font-size:11px;color:var(--text3);white-space:nowrap}
+.topbar-fmt select{font-size:12px;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);cursor:pointer}
+.topbar-btn{font-size:12px;padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;white-space:nowrap;transition:all .15s;font-weight:500}
+.topbar-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--accent)}
+.topbar-btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.topbar-btn.primary:hover{background:#7091ff;border-color:#7091ff}
+.topbar-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.mode-btns{display:flex;gap:4px}
+.mode-btn{font-size:11px;padding:5px 12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;transition:all .15s;font-weight:600}
+.mode-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+.mode-btn:not(.active):hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── メインレイアウト ── */
+.app{display:flex;height:calc(100vh - 52px);overflow:hidden}
+
+/* ── 左: キャンバスエリア ── */
+.canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-width:0}
+.canvas-scroll{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px}
+.canvas-wrap{border:1px solid var(--border2);border-radius:var(--radius);background:#222;overflow:hidden;box-shadow:var(--shadow);position:relative}
+canvas{display:block;cursor:crosshair}
+.canvas-hint{padding:6px 24px 10px;font-size:11px;color:var(--text3);display:flex;gap:16px}
+.canvas-hint span::before{content:'•';margin-right:5px;color:var(--accent)}
+
+/* ── 右: サイドパネル ── */
+.side{width:360px;min-width:320px;display:flex;flex-direction:column;background:var(--surface);border-left:1px solid var(--border);overflow:hidden}
+.side-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+.side-tab{flex:1;padding:10px;font-size:12px;font-weight:600;text-align:center;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.side-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.side-tab:hover:not(.active){color:var(--text)}
+.side-content{flex:1;overflow-y:auto;padding:12px}
+.side-content::-webkit-scrollbar{width:4px}
+.side-content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── セクション見出し ── */
+.sec-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;padding:8px 0 6px;display:flex;justify-content:space-between;align-items:center}
+
+/* ── 領域カード ── */
+.zone-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;overflow:hidden;background:var(--surface2);transition:border-color .2s}
+.zone-card.emphasized{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange-glow)}
+.zone-card.collapsed .zone-toggle{transform:rotate(-90deg)}
+.zone-card.collapsed .zone-body{display:none}
+.zone-header{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--surface3);border-bottom:1px solid var(--border)}
+.zone-toggle{background:none;border:none;color:var(--text3);font-size:9px;cursor:pointer;padding:3px;transition:transform .2s;line-height:1}
+.zone-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.zone-num{font-size:10px;color:var(--text3);min-width:14px}
+.zone-name-input{flex:1;min-width:0;font-size:12px;font-weight:600;padding:2px 5px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--text)}
+.zone-name-input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+.zone-actions{display:flex;gap:3px;align-items:center;flex-shrink:0}
+.zone-emph-btn{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;white-space:nowrap;transition:all .15s}
+.zone-emph-btn.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.zone-emph-btn:not(.on):hover{border-color:var(--orange);color:var(--orange)}
+.zone-del-btn{font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid transparent;background:transparent;color:var(--text3);cursor:pointer}
+.zone-del-btn:hover{color:var(--red);border-color:var(--red)}
+.zone-body{padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+.zone-field label{display:block;font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:.03em}
+.zone-field input,.zone-field textarea{width:100%;font-size:12px;padding:6px 8px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text);resize:vertical;transition:border-color .15s}
+.zone-field input:focus,.zone-field textarea:focus{outline:none;border-color:var(--accent)}
+.details-toggle-wrap{text-align:center}
+.btn-toggle-details{background:none;border:none;color:var(--accent);font-size:10px;cursor:pointer;padding:3px 8px;border-radius:4px;font-weight:600}
+.btn-toggle-details:hover{background:var(--accent-glow)}
+.zone-details-area{border-top:1px dashed var(--border2);padding-top:7px;display:flex;flex-direction:column;gap:7px}
+
+/* ── 写真アップロードエリア ── */
+.photo-upload-wrap{position:relative}
+.photo-drop-zone{border:1.5px dashed var(--border2);border-radius:var(--radius-sm);padding:10px;text-align:center;cursor:pointer;transition:all .15s;background:var(--surface)}
+.photo-drop-zone:hover,.photo-drop-zone.dragover{border-color:var(--accent);background:var(--accent-glow)}
+.photo-drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-drop-zone .drop-hint{font-size:10px;color:var(--text3)}
+.photo-drop-zone .drop-hint span{color:var(--accent);font-weight:600}
+.photo-preview{display:flex;align-items:center;gap:8px;background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:6px 8px}
+.photo-preview img{width:40px;height:40px;object-fit:cover;border-radius:4px;flex-shrink:0}
+.photo-preview-info{flex:1;min-width:0}
+.photo-preview-name{font-size:11px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.photo-preview-renamed{font-size:10px;color:var(--green);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.photo-clear-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;padding:2px;flex-shrink:0}
+.photo-clear-btn:hover{color:var(--red)}
+
+/* ── 設定タブ ── */
+.settings-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:10px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600}
+.field select,.field input{width:100%;font-size:12px;padding:7px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text)}
+.field select:focus,.field input:focus{outline:none;border-color:var(--accent)}
+
+/* ── プロンプト出力 ── */
+.output-box{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);padding:12px;font-size:11px;color:#a8b4d0;line-height:1.8;white-space:pre-wrap;word-break:break-all;min-height:80px;max-height:340px;overflow-y:auto;font-family:'Fira Code','Consolas',monospace}
+.output-box::-webkit-scrollbar{width:4px}
+.output-box::-webkit-scrollbar-thumb{background:var(--border2)}
+.output-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.output-actions button{font-size:11px;padding:6px 14px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer;font-weight:600;transition:all .15s}
+.output-actions button:hover{background:var(--surface3);color:var(--text)}
+.output-actions .btn-zip{border-color:var(--green);color:var(--green)}
+.output-actions .btn-zip:hover{background:rgba(52,211,153,.1)}
+.output-actions .btn-copy-prim{background:var(--accent);border-color:var(--accent);color:#fff}
+.output-actions .btn-copy-prim:hover{background:#7091ff}
+
+/* ── テンプレ・設定パネル共通 ── */
+.empty-hint{font-size:11px;color:var(--text3);padding:16px 0;text-align:center}
+.btn-generate{width:100%;padding:11px;font-size:13px;font-weight:700;border-radius:var(--radius);border:none;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;cursor:pointer;margin-bottom:10px;letter-spacing:.02em;box-shadow:0 2px 16px var(--accent-glow);transition:opacity .15s}
+.btn-generate:hover{opacity:.88}
+.output-wrap{display:none}
+.panel-sep{height:1px;background:var(--border);margin:10px 0}
+
+/* ── テンプレートモーダル ── */
+.tpl-modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:none;justify-content:center;align-items:center;z-index:2000;backdrop-filter:blur(4px)}
+.tpl-modal-content{background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:92%;max-width:700px;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 12px 60px rgba(0,0,0,.6)}
+.tpl-modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.tpl-modal-header h2{font-size:14px;font-weight:700;color:var(--text)}
+.btn-close-modal{background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text3);transition:color .15s}
+.btn-close-modal:hover{color:var(--text)}
+.tpl-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;padding:0 12px;background:var(--surface)}
+.tpl-tab{font-size:11px;padding:8px 14px;border:none;background:none;cursor:pointer;color:var(--text3);border-bottom:2px solid transparent;white-space:nowrap;font-weight:600;transition:all .15s}
+.tpl-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tpl-tab:hover:not(.active){color:var(--text)}
+.tpl-body{padding:14px;overflow-y:auto;flex:1}
+.tpl-body::-webkit-scrollbar{width:4px}
+.tpl-body::-webkit-scrollbar-thumb{background:var(--border2)}
+.tpl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px}
+.tpl-card{border:1.5px solid var(--border);border-radius:var(--radius);padding:12px;cursor:pointer;transition:all .15s;background:var(--surface2)}
+.tpl-card:hover{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow);transform:translateY(-1px)}
+.tpl-card .tc-genre{font-size:9px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.tpl-card .tc-name{font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px}
+.tpl-card .tc-desc{font-size:10px;color:var(--text2);line-height:1.4;margin-bottom:6px}
+.tpl-card .tc-zones{font-size:10px;color:var(--accent);font-weight:600}
+.tpl-card.user-saved{border-color:var(--green)}
+.tpl-card.user-saved .tc-genre{color:var(--green)}
+.tpl-del-btn{float:right;font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:0 0 0 6px}
+.tpl-del-btn:hover{color:var(--red)}
+.tpl-save-row{display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid var(--border);flex-shrink:0}
+.tpl-save-row input{flex:1;font-size:12px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text)}
+.tpl-save-row input:focus{outline:none;border-color:var(--accent)}
+.tpl-save-row .btn-save-tpl{font-size:11px;padding:6px 14px;border-radius:var(--radius-sm);border:none;background:var(--green);color:#0a1a13;cursor:pointer;white-space:nowrap;font-weight:700}
+.tpl-save-row .btn-save-tpl:hover{opacity:.85}
+.no-tpl-hint{font-size:11px;color:var(--text3);padding:24px;text-align:center}
+
+/* ── 詳細設定モーダル ── */
+.tpl-detail-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);display:none;justify-content:center;align-items:center;z-index:3000;backdrop-filter:blur(4px)}
+.tpl-detail-content{background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:94%;max-width:640px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 16px 80px rgba(0,0,0,.7)}
+.tpl-detail-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.tpl-detail-header h2{font-size:13px;font-weight:700;color:var(--text)}
+.tpl-genre-badge{font-size:9px;background:rgba(91,127,255,.15);color:var(--accent);padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px;letter-spacing:.04em}
+.tpl-detail-body{flex:1;overflow-y:auto;padding:14px 16px}
+.tpl-detail-body::-webkit-scrollbar{width:4px}
+.tpl-detail-body::-webkit-scrollbar-thumb{background:var(--border2)}
+.tpl-detail-footer{padding:10px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.cfg-section{margin-bottom:16px}
+.cfg-section-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.cfg-field{margin-bottom:10px}
+.cfg-field label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:600}
+.cfg-field input,.cfg-field textarea{width:100%;font-size:12px;padding:7px 10px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface2);color:var(--text);resize:vertical;transition:border-color .15s}
+.cfg-field input:focus,.cfg-field textarea:focus{outline:none;border-color:var(--accent)}
+.cfg-row{display:flex;gap:8px}
+.cfg-row .cfg-field{flex:1}
+.cfg-preview-bar{background:rgba(91,127,255,.08);border:1px solid rgba(91,127,255,.2);border-radius:var(--radius-sm);padding:8px 12px;font-size:11px;color:var(--accent);margin-bottom:12px}
+.dyn-list{display:flex;flex-direction:column;gap:5px;margin-bottom:7px}
+.dyn-item{display:flex;gap:6px;align-items:flex-start;background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 9px}
+.dyn-item.emphasized-item{border-color:var(--orange);background:rgba(245,158,66,.05)}
+.dyn-item-fields{flex:1;display:flex;flex-direction:column;gap:4px}
+.dyn-item-fields input,.dyn-item-fields textarea{width:100%;font-size:11px;padding:5px 7px;border-radius:4px;border:1px solid var(--border2);background:var(--surface2);color:var(--text)}
+.dyn-item-fields input:focus,.dyn-item-fields textarea:focus{outline:none;border-color:var(--accent)}
+.dyn-item-controls{display:flex;flex-direction:column;gap:3px;align-items:center;flex-shrink:0}
+.dyn-emph-btn{font-size:9px;padding:3px 5px;border-radius:4px;border:1px solid var(--border2);background:transparent;color:var(--text3);cursor:pointer;line-height:1.2;transition:all .15s}
+.dyn-emph-btn.on{background:var(--orange);color:#fff;border-color:var(--orange)}
+.dyn-del-btn{font-size:13px;background:none;border:none;color:var(--text3);cursor:pointer;padding:0 2px;line-height:1;transition:color .15s}
+.dyn-del-btn:hover{color:var(--red)}
+.dyn-add-btn{font-size:11px;color:var(--accent);background:none;border:1px dashed rgba(91,127,255,.4);border-radius:var(--radius-sm);padding:5px 12px;cursor:pointer;width:100%;font-weight:600;transition:all .15s}
+.dyn-add-btn:hover{background:var(--accent-glow);border-color:var(--accent)}
+.dyn-item-num{font-size:9px;color:var(--text3);min-width:12px;text-align:center;padding-top:3px}
+.cfg-emph-row{display:flex;align-items:center;gap:8px;margin-top:4px}
+.cfg-emph-toggle{position:relative;width:34px;height:18px;flex-shrink:0}
+.cfg-emph-toggle input{opacity:0;width:0;height:0}
+.cfg-emph-slider{position:absolute;inset:0;background:var(--border2);border-radius:18px;cursor:pointer;transition:.2s}
+.cfg-emph-slider:before{content:'';position:absolute;width:14px;height:14px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s}
+.cfg-emph-toggle input:checked + .cfg-emph-slider{background:var(--orange)}
+.cfg-emph-toggle input:checked + .cfg-emph-slider:before{transform:translateX(16px)}
+.cfg-emph-label{font-size:11px;color:var(--text3)}
+.cfg-emph-label.on{color:var(--orange);font-weight:600}
+.btn-cfg-apply{flex:1;padding:10px;font-size:13px;font-weight:700;border-radius:var(--radius-sm);border:none;background:linear-gradient(90deg,var(--accent),var(--accent2));color:#fff;cursor:pointer;box-shadow:0 2px 12px var(--accent-glow)}
+.btn-cfg-apply:hover{opacity:.88}
+.btn-cfg-back{padding:10px 16px;font-size:12px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer}
+.btn-cfg-back:hover{border-color:var(--text2);color:var(--text)}
+
+/* ── ZIP進捗バッジ ── */
+.zip-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--green);background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:6px;padding:4px 10px;margin-top:6px}
+@media(max-width:768px){.side{width:100%;border-left:none;border-top:1px solid var(--border)}.app{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- ── トップバー ── -->
+<div class="topbar">
+  <div class="topbar-logo">PromptCanvas <span>広告レイアウトビルダー</span></div>
+  <div class="mode-btns">
+    <button id="btn-draw" class="mode-btn active" onclick="setMode('draw')">✏ 描画</button>
+    <button id="btn-move" class="mode-btn" onclick="setMode('move')">⤢ 移動</button>
+  </div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-fmt">
+    <label>フォーマット</label>
+    <select id="fmt" onchange="resizeCanvas()">
+      <option value="A4v">A4縦（チラシ）</option>
+      <option value="A4h">A4横</option>
+      <option value="B4v">B4縦（ポスター）</option>
+      <option value="B4h">B4横</option>
+      <option value="poster">大判ポスター（縦）</option>
+      <option value="sq">正方形（SNS）</option>
+      <option value="wide">横長バナー（16:9）</option>
+      <option value="story">縦長（ストーリーズ）</option>
+      <option value="x_header">X ヘッダー</option>
+      <option value="yt_thumb">YouTube サムネイル</option>
+      <option value="card">名刺（横）</option>
+    </select>
+  </div>
+  <button class="topbar-btn danger" onclick="clearAll()">全消去</button>
+</div>
+
+<div class="app">
+  <!-- ── キャンバスエリア ── -->
+  <div class="canvas-area">
+    <div class="canvas-scroll">
+      <div class="canvas-wrap"><canvas id="cv"></canvas></div>
+    </div>
+    <div class="canvas-hint">
+      <span>描画モード: ドラッグで領域を作成</span>
+      <span>移動モード: ドラッグで移動・角ハンドルでリサイズ</span>
+    </div>
+  </div>
+
+  <!-- ── サイドパネル ── -->
+  <div class="side">
+    <div class="side-tabs">
+      <button class="side-tab active" onclick="switchTab('zones',this)">領域リスト</button>
+      <button class="side-tab" onclick="switchTab('settings',this)">設定</button>
+      <button class="side-tab" onclick="switchTab('output',this)">出力</button>
+    </div>
+
+    <!-- 領域リストタブ -->
+    <div class="side-content" id="tab-zones">
+      <div class="sec-label">
+        <span>領域 <span id="zone-count" style="color:var(--accent)">0</span></span>
+        <div style="display:flex;gap:5px">
+          <button class="topbar-btn" style="font-size:10px;padding:3px 9px" onclick="collapseAll()">全折りたたみ</button>
+          <button class="topbar-btn primary" style="font-size:10px;padding:3px 9px" onclick="openTplModal()">📋 テンプレ</button>
+        </div>
+      </div>
+      <div id="zones-list"><div class="empty-hint">キャンバスでドラッグして領域を作成してください</div></div>
+    </div>
+
+    <!-- 設定タブ -->
+    <div class="side-content" id="tab-settings" style="display:none">
+      <div class="sec-label">スタイル & 雰囲気</div>
+      <div class="settings-grid">
+        <div class="field">
+          <label>スタイル</label>
+          <select id="style" class="dynamic-select">
+            <option value="photorealistic" data-short="写実的" data-full="写実的（本物の写真のようなリアルな仕上がり）">写実的</option>
+            <option value="minimalist" data-short="ミニマル" data-full="ミニマル（余白多め・シンプル・すっきり）">ミニマル</option>
+            <option value="flat" data-short="フラット" data-full="フラットデザイン（影なし・2D・アイコン的）">フラット</option>
+            <option value="anime" data-short="アニメ風" data-full="アニメ風（日本のアニメ・漫画のようなイラスト）">アニメ風</option>
+            <option value="vintage" data-short="ヴィンテージ" data-full="ヴィンテージ（レトロ・古い雰囲気・懐かしさ）">ヴィンテージ</option>
+            <option value="modern" data-short="モダン" data-full="モダン（今風・スタイリッシュ・洗練）">モダン</option>
+            <option value="watercolor" data-short="水彩画風" data-full="水彩画風（手描き感・柔らかいタッチ）">水彩画風</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>照明</label>
+          <select id="lighting" class="dynamic-select">
+            <option value="natural" data-short="自然光" data-full="自然光（屋外の太陽光・柔らかく明るい）">自然光</option>
+            <option value="studio" data-short="スタジオ" data-full="スタジオ照明（白背景・均一・商品撮影向き）">スタジオ</option>
+            <option value="golden" data-short="夕暮れ" data-full="ゴールデンアワー（夕方の暖かいオレンジ光）">夕暮れ</option>
+            <option value="soft" data-short="柔らかい" data-full="柔らかい光（影薄め・優しい雰囲気）">柔らかい</option>
+            <option value="dramatic" data-short="ドラマティック" data-full="ドラマティック（明暗差大・インパクト重視）">ドラマティック</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>色調</label>
+          <select id="color" class="dynamic-select">
+            <option value="warm" data-short="暖色系" data-full="暖色系（赤・オレンジ・黄色・活力感）">暖色系</option>
+            <option value="cool" data-short="寒色系" data-full="寒色系（青・緑・紫・清潔感・信頼感）">寒色系</option>
+            <option value="pastel" data-short="パステル" data-full="パステル（淡い・やさしい・かわいい）">パステル</option>
+            <option value="mono" data-short="モノクロ" data-full="モノクロ（白黒・シック・高級感）">モノクロ</option>
+            <option value="vivid" data-short="ビビッド" data-full="ビビッド（鮮やかで目立つ・高彩度）">ビビッド</option>
+            <option value="contrast" data-short="高コントラスト" data-full="高コントラスト（明暗差強め・力強い印象）">高コントラスト</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>構図</label>
+          <select id="composition" class="dynamic-select">
+            <option value="" data-short="指定なし" data-full="指定なし">指定なし</option>
+            <option value="eye_level" data-short="アイレベル" data-full="アイレベル（標準的な目線）">アイレベル</option>
+            <option value="close_up" data-short="クローズアップ" data-full="クローズアップ（被写体に寄る）">クローズアップ</option>
+            <option value="wide_angle" data-short="広角・引き" data-full="広角・引きの絵（全体を見せる）">広角・引き</option>
+            <option value="high_angle" data-short="ハイアングル" data-full="ハイアングル（見下ろす・俯瞰）">ハイアングル</option>
+            <option value="low_angle" data-short="ローアングル" data-full="ローアングル（見上げる・あおり）">ローアングル</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>カメラ</label>
+          <select id="camera" class="dynamic-select">
+            <option value="" data-short="指定なし" data-full="指定なし">指定なし</option>
+            <option value="dslr" data-short="一眼レフ" data-full="一眼レフ（高品質・ボケ味）">一眼レフ</option>
+            <option value="polaroid" data-short="ポラロイド" data-full="ポラロイド・チェキ風">ポラロイド</option>
+            <option value="film" data-short="フィルム" data-full="フィルムカメラ風（粒状感）">フィルム</option>
+            <option value="drone" data-short="ドローン" data-full="ドローン空撮風">ドローン</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>雰囲気・ターゲット（自由入力）</label>
+        <input type="text" id="mood" placeholder="例: 子ども向け, 高級感, 清潔感">
+      </div>
+    </div>
+
+    <!-- 出力タブ -->
+    <div class="side-content" id="tab-output" style="display:none">
+      <button class="btn-generate" onclick="generate()">▶ プロンプトを生成</button>
+      <div class="output-wrap" id="output-wrap">
+        <div class="output-box" id="output"></div>
+        <div class="output-actions">
+          <button class="btn-copy-prim" onclick="copyPrompt()">📋 コピー</button>
+          <button class="btn-zip" id="btn-zip" onclick="downloadZip()">📦 写真をZIPでダウンロード</button>
+        </div>
+        <div id="zip-status"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== テンプレートモーダル ===== -->
+<div id="tpl-modal" class="tpl-modal-overlay">
+  <div class="tpl-modal-content">
+    <div class="tpl-modal-header">
+      <h2>📋 レイアウトテンプレート</h2>
+      <button class="btn-close-modal" onclick="closeTplModal()">✕</button>
+    </div>
+    <div class="tpl-tabs" id="tpl-tabs"></div>
+    <div class="tpl-body"><div class="tpl-grid" id="tpl-grid"></div></div>
+    <div class="tpl-save-row">
+      <input type="text" id="tpl-save-name" placeholder="現在の状態をテンプレとして保存（名前を入力）">
+      <button class="btn-save-tpl" onclick="saveCurrentAsTpl()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 詳細設定モーダル ===== -->
+<div id="tpl-detail-modal" class="tpl-detail-overlay">
+  <div class="tpl-detail-content">
+    <div class="tpl-detail-header">
+      <div style="display:flex;align-items:center">
+        <h2 id="cfg-title">詳細設定</h2>
+        <span class="tpl-genre-badge" id="cfg-genre-badge"></span>
+      </div>
+      <button class="btn-close-modal" onclick="closeCfgModal()">✕</button>
+    </div>
+    <div class="tpl-detail-body" id="cfg-body"></div>
+    <div class="tpl-detail-footer">
+      <button class="btn-cfg-back" onclick="closeCfgModal()">← 戻る</button>
+      <button class="btn-cfg-apply" onclick="applyCfgToCanvas()">✅ キャンバスに反映</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ── タブ切替
+function switchTab(id,btn){
+  ['zones','settings','output'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===id?'':'none'});
+  document.querySelectorAll('.side-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('.dynamic-select').forEach(sel=>{
+    const expand=()=>Array.from(sel.options).forEach(o=>{if(o.dataset.full)o.textContent=o.dataset.full});
+    const shrink=()=>Array.from(sel.options).forEach(o=>{if(o.dataset.short)o.textContent=o.dataset.short});
+    sel.addEventListener('mousedown',expand);sel.addEventListener('touchstart',expand,{passive:true});
+    sel.addEventListener('focus',expand);sel.addEventListener('blur',shrink);sel.addEventListener('change',shrink);
+    shrink();
+  });
+});
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+const COLORS=['#5b7fff','#34d399','#f59e42','#f87171','#a78bfa','#38bdf8','#fb923c','#4ade80','#e879f9','#facc15'];
+const DEF_NAMES=['メイン画像','見出し','サブコピー','商品','人物','背景','ロゴ','ボタン','装飾','その他'];
+const FMT={A4v:{w:400,h:565,prompt:'portrait A4 vertical flyer layout'},A4h:{w:565,h:400,prompt:'landscape A4 horizontal layout'},B4v:{w:400,h:573,prompt:'portrait B4 vertical poster/flyer layout'},B4h:{w:573,h:400,prompt:'landscape B4 horizontal poster/flyer layout'},poster:{w:400,h:565,prompt:'large vertical poster layout'},sq:{w:460,h:460,prompt:'square 1:1 social media post'},wide:{w:580,h:326,prompt:'wide 16:9 horizontal banner'},story:{w:320,h:568,prompt:'vertical 9:16 stories format'},x_header:{w:600,h:200,prompt:'ultra-wide 3:1 header banner layout'},yt_thumb:{w:560,h:315,prompt:'16:9 YouTube thumbnail layout'},card:{w:550,h:330,prompt:'horizontal business card layout'}};
+const STYLE_MAP={photorealistic:'photorealistic hyperrealistic commercial photography, photo-quality image',minimalist:'minimalist design, generous white space, clean and simple composition',flat:'flat design illustration, bold colors, no shadows or gradients, 2D graphic style',anime:'anime style illustration, Japanese anime aesthetic, hand-drawn look',vintage:'vintage retro poster style, aged texture, nostalgic warm feel',modern:'modern contemporary design, bold geometric shapes, sleek and stylish',watercolor:'soft watercolor illustration, artistic handcrafted brushstroke style'};
+const LIGHT_MAP={natural:'natural daylight, soft shadows, bright and airy atmosphere',studio:'professional studio lighting, clean white background, sharp crisp detail',golden:'golden hour lighting, warm orange glow, long soft shadows',soft:'soft diffused light, gentle shadows, warm inviting atmosphere',dramatic:'dramatic chiaroscuro lighting, deep shadows, strong highlights, high contrast'};
+const COLOR_MAP={warm:'warm color palette - oranges, reds and yellows, energetic and inviting',cool:'cool color palette - blues and teals, calm and trustworthy',pastel:'soft pastel colors, light dreamy palette, gentle and cute',mono:'black and white monochrome, elegant and sophisticated',vivid:'vibrant vivid colors, highly saturated, bold and eye-catching',contrast:'high contrast color scheme, bold and striking visual impact'};
+const COMP_MAP={eye_level:'eye-level shot, standard perspective',close_up:'close-up shot, detailed focus on the main subject',wide_angle:'wide-angle shot, expansive view',high_angle:'high-angle shot, birds-eye view',low_angle:'low-angle shot, heroic perspective'};
+const CAMERA_MAP={dslr:'shot on DSLR, beautiful bokeh, shallow depth of field',polaroid:'polaroid style, instant camera aesthetic, vintage border',film:'35mm film photography, natural film grain',drone:'drone photography, aerial view'};
+const POS_LABEL=z=>{const cx=(z.x+z.w/2)/cv.width,cy=(z.y+z.h/2)/cv.height;const h=cx<.35?'left side':cx>.65?'right side':'center';const v=cy<.33?'top':cy>.66?'bottom':'middle';if(v==='middle'&&h==='center')return'center';if(v==='middle')return h;return v+' '+h};
+const SIZE_LABEL=z=>{const wp=Math.round(z.w/cv.width*100),hp=Math.round(z.h/cv.height*100);const ws=wp>60?'large':wp>30?'medium':'small';const hs=hp>60?'tall':hp>30?'medium-height':'short';return`${ws} ${hs} block (occupying roughly ${wp}% of width and ${hp}% of height)`};
+let zones=[],mode='draw';
+let drawing=false,startX=0,startY=0,currentRect=null;
+let dragIdx=-1,dragOffX=0,dragOffY=0;
+let resizeIdx=-1,resizeHandle='',resizeOrigZ=null;
+const HANDLE=10;
+function setMode(m){
+  mode=m;
+  document.getElementById('btn-draw').classList.toggle('active',m==='draw');
+  document.getElementById('btn-move').classList.toggle('active',m==='move');
+  cv.style.cursor=m==='draw'?'crosshair':'default';
+}
+function resizeCanvas(){const f=FMT[document.getElementById('fmt').value];cv.width=f.w;cv.height=f.h;clearAll()}
+resizeCanvas();
+function norm(x,y,w,h){return w<0?(h<0?{x:x+w,y:y+h,w:-w,h:-h}:{x:x+w,y:y,w:-w,h:h}):(h<0?{x:x,y:y+h,w:w,h:-h}:{x,y,w,h})}
+function getHandle(z,p){
+  const pts={nw:{x:z.x,y:z.y},n:{x:z.x+z.w/2,y:z.y},ne:{x:z.x+z.w,y:z.y},w:{x:z.x,y:z.y+z.h/2},e:{x:z.x+z.w,y:z.y+z.h/2},sw:{x:z.x,y:z.y+z.h},s:{x:z.x+z.w/2,y:z.y+z.h},se:{x:z.x+z.w,y:z.y+z.h}};
+  for(const[k,c]of Object.entries(pts))if(Math.abs(p.x-c.x)<HANDLE&&Math.abs(p.y-c.y)<HANDLE)return k;
+  return null;
+}
+function rCursor(h){return{nw:'nw-resize',ne:'ne-resize',sw:'sw-resize',se:'se-resize',n:'n-resize',s:'s-resize',w:'w-resize',e:'e-resize'}[h]||'default'}
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#1a1e2d';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.setLineDash([]);ctx.lineWidth=0.5;
+  for(let x=0;x<=cv.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke()}
+  for(let y=0;y<=cv.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke()}
+  zones.forEach((z,i)=>{
+    const c=COLORS[i%COLORS.length];
+    if(z._imgEl){ctx.save();ctx.globalAlpha=0.45;ctx.drawImage(z._imgEl,z.x,z.y,z.w,z.h);ctx.restore()}
+    ctx.fillStyle=c+'22';ctx.fillRect(z.x,z.y,z.w,z.h);
+    if(z.emphasized){ctx.strokeStyle='#f59e42';ctx.lineWidth=2;ctx.setLineDash([])}
+    else{ctx.strokeStyle=c+'bb';ctx.lineWidth=1.5;ctx.setLineDash([])}
+    ctx.strokeRect(z.x+1,z.y+1,z.w-2,z.h-2);
+    if(z.emphasized){ctx.fillStyle='#f59e42';ctx.fillRect(z.x+z.w-20,z.y,20,14);ctx.fillStyle='#fff';ctx.font='bold 9px sans-serif';ctx.fillText('★',z.x+z.w-14,z.y+10)}
+    ctx.fillStyle=c+'cc';ctx.fillRect(z.x,z.y,Math.min(z.w,155),17);
+    ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';
+    const lbl=(i+1)+'. '+(z.name||DEF_NAMES[i]||'エリア'+(i+1));
+    ctx.fillText(lbl.length>19?lbl.slice(0,18)+'…':lbl,z.x+4,z.y+12);
+    if(z._photoName){ctx.fillStyle='rgba(52,211,153,0.9)';ctx.font='9px sans-serif';ctx.fillText('📷 '+z._photoName.slice(0,20),z.x+4,z.y+28)}
+    else if(z.heading&&z.heading.trim()){ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px sans-serif';const ht=z.heading.length>22?z.heading.slice(0,21)+'…':z.heading;ctx.fillText(ht,z.x+4,z.y+28)}
+    if(mode==='move'){
+      [{x:z.x,y:z.y},{x:z.x+z.w/2,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x,y:z.y+z.h/2},{x:z.x+z.w,y:z.y+z.h/2},{x:z.x,y:z.y+z.h},{x:z.x+z.w/2,y:z.y+z.h},{x:z.x+z.w,y:z.y+z.h}].forEach(pt=>{
+        ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(pt.x-4,pt.y-4,8,8);
+        ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.strokeRect(pt.x-4,pt.y-4,8,8);
+      });
+    }
+  });
+  if(currentRect){ctx.fillStyle='rgba(91,127,255,0.08)';ctx.fillRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.strokeStyle='#5b7fff';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.strokeRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.setLineDash([])}
+  document.getElementById('zone-count').textContent=zones.length;
+}
+function getPos(e){const r=cv.getBoundingClientRect();const sx=cv.width/r.width,sy=cv.height/r.height;const cx=e.touches?e.touches[0].clientX:e.clientX;const cy2=e.touches?e.touches[0].clientY:e.clientY;return{x:(cx-r.left)*sx,y:(cy2-r.top)*sy}}
+function hitZone(p){for(let i=zones.length-1;i>=0;i--){const z=zones[i];if(p.x>=z.x&&p.x<=z.x+z.w&&p.y>=z.y&&p.y<=z.y+z.h)return i}return -1}
+cv.addEventListener('mousedown',e=>{const p=getPos(e);if(mode==='move'){for(let i=zones.length-1;i>=0;i--){const h=getHandle(zones[i],p);if(h){resizeIdx=i;resizeHandle=h;resizeOrigZ={...zones[i]};startX=p.x;startY=p.y;return}}const idx=hitZone(p);if(idx>=0){dragIdx=idx;dragOffX=p.x-zones[idx].x;dragOffY=p.y-zones[idx].y;cv.style.cursor='grabbing';return}return}drawing=true;startX=p.x;startY=p.y;currentRect=null});
+cv.addEventListener('mousemove',e=>{const p=getPos(e);if(resizeIdx>=0){const z=resizeOrigZ,dx=p.x-startX,dy=p.y-startY;let nx=z.x,ny=z.y,nw=z.w,nh=z.h;if(resizeHandle.includes('e'))nw=Math.max(20,z.w+dx);if(resizeHandle.includes('s'))nh=Math.max(20,z.h+dy);if(resizeHandle.includes('w')){nx=z.x+dx;nw=Math.max(20,z.w-dx)}if(resizeHandle.includes('n')){ny=z.y+dy;nh=Math.max(20,z.h-dy)}zones[resizeIdx]={...zones[resizeIdx],x:nx,y:ny,w:nw,h:nh};draw();return}if(dragIdx>=0){zones[dragIdx].x=Math.max(0,Math.min(cv.width-zones[dragIdx].w,p.x-dragOffX));zones[dragIdx].y=Math.max(0,Math.min(cv.height-zones[dragIdx].h,p.y-dragOffY));draw();return}if(mode==='move'){for(let i=zones.length-1;i>=0;i--){const h=getHandle(zones[i],p);if(h){cv.style.cursor=rCursor(h);return}}cv.style.cursor=hitZone(p)>=0?'grab':'default';return}if(!drawing)return;currentRect=norm(startX,startY,p.x-startX,p.y-startY);draw()});
+cv.addEventListener('mouseup',e=>{if(resizeIdx>=0){resizeIdx=-1;resizeHandle='';resizeOrigZ=null;return}if(dragIdx>=0){dragIdx=-1;cv.style.cursor='grab';return}if(!drawing)return;drawing=false;if(currentRect&&currentRect.w>15&&currentRect.h>15){zones.push({...currentRect,name:'',heading:'',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false,_photoName:null,_photoData:null,_imgEl:null});currentRect=null;draw();renderList()}else{currentRect=null;draw()}});
+cv.addEventListener('mouseleave',()=>{if(resizeIdx>=0){resizeIdx=-1;resizeHandle='';resizeOrigZ=null}if(dragIdx>=0)dragIdx=-1;if(drawing){drawing=false;currentRect=null;draw()}});
+cv.addEventListener('touchstart',e=>{e.preventDefault();const p=getPos(e);if(mode==='move'){const idx=hitZone(p);if(idx>=0){dragIdx=idx;dragOffX=p.x-zones[idx].x;dragOffY=p.y-zones[idx].y}return}drawing=true;startX=p.x;startY=p.y},{passive:false});
+cv.addEventListener('touchmove',e=>{e.preventDefault();const p=getPos(e);if(dragIdx>=0){zones[dragIdx].x=Math.max(0,Math.min(cv.width-zones[dragIdx].w,p.x-dragOffX));zones[dragIdx].y=Math.max(0,Math.min(cv.height-zones[dragIdx].h,p.y-dragOffY));draw();return}if(!drawing)return;currentRect=norm(startX,startY,p.x-startX,p.y-startY);draw()},{passive:false});
+cv.addEventListener('touchend',e=>{if(dragIdx>=0){dragIdx=-1;return}if(!drawing)return;drawing=false;if(currentRect&&currentRect.w>15&&currentRect.h>15){zones.push({...currentRect,name:'',heading:'',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false,_photoName:null,_photoData:null,_imgEl:null});currentRect=null;draw();renderList()}else{currentRect=null;draw()}});
+function toggleEmph(i){zones[i].emphasized=!zones[i].emphasized;draw();renderList()}
+function toggleCollapse(i){zones[i].collapsed=!zones[i].collapsed;renderList()}
+function toggleDetails(i){zones[i].showDetails=!zones[i].showDetails;renderList()}
+function makePhotoFilename(idx){
+  const z=zones[idx];
+  const name=(z.name||DEF_NAMES[idx]||'zone'+(idx+1)).replace(/[\s/\\:*?"<>|]/g,'_');
+  const dataStr=z._photoData||'';
+  const ext=dataStr?dataStr.split(';')[0].split('/')[1]||'jpg':'jpg';
+  return 'zone'+String(idx+1).padStart(2,'0')+'_'+name+'.'+ext;
+}
+function handlePhotoUpload(idx,file){
+  if(!file||!file.type.startsWith('image/'))return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    zones[idx]._photoData=e.target.result;
+    zones[idx]._photoName=makePhotoFilename(idx);
+    const img=new Image();
+    img.onload=()=>{zones[idx]._imgEl=img;draw()};
+    img.src=e.target.result;
+    renderList();
+  };
+  reader.readAsDataURL(file);
+}
+function clearPhoto(idx){zones[idx]._photoData=null;zones[idx]._photoName=null;zones[idx]._imgEl=null;draw();renderList()}
+function renderList(){
+  const el=document.getElementById('zones-list');
+  if(!zones.length){el.innerHTML='<div class="empty-hint">キャンバスでドラッグして領域を作成してください</div>';return}
+  el.innerHTML=zones.map((z,i)=>{
+    const safeName=(z.name||DEF_NAMES[i]||'zone').replace(/[\s/\\:*?"<>|]/g,'_');
+    const dataStr=z._photoData||'';
+    const ext=dataStr?dataStr.split(';')[0].split('/')[1]||'jpg':'jpg';
+    const previewFileName='zone'+String(i+1).padStart(2,'0')+'_'+safeName+'.'+ext;
+    return `<div class="zone-card${z.emphasized?' emphasized':''}${z.collapsed?' collapsed':''}" id="zone-card-${i}">
+      <div class="zone-header">
+        <button class="zone-toggle" onclick="toggleCollapse(${i})">▼</button>
+        <div class="zone-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+        <span class="zone-num">${i+1}</span>
+        <input class="zone-name-input" placeholder="${DEF_NAMES[i]||'エリア名'}"
+          value="${(z.name||'').replace(/"/g,'&quot;')}"
+          oninput="zones[${i}].name=this.value;draw()">
+        <div class="zone-actions">
+          <button class="zone-emph-btn${z.emphasized?' on':''}" onclick="toggleEmph(${i})">★</button>
+          <button class="zone-del-btn" onclick="delZone(${i})">✕</button>
+        </div>
+      </div>
+      <div class="zone-body">
+        <div class="zone-field">
+          <label>見出し・テキスト</label>
+          <input type="text" placeholder="例: 春のキャンペーン開催中！"
+            value="${(z.heading||'').replace(/"/g,'&quot;')}"
+            oninput="zones[${i}].heading=this.value;draw()">
+        </div>
+        <div class="zone-field">
+          <label>説明・詳細</label>
+          <textarea rows="2" placeholder="例: 商品特徴、価格など"
+            oninput="zones[${i}].description=this.value">${z.description||''}</textarea>
+        </div>
+        <div class="zone-field">
+          <label>📷 使用写真</label>
+          <div class="photo-upload-wrap">
+            ${z._photoData?`
+            <div class="photo-preview">
+              <img src="${z._photoData}" alt="preview">
+              <div class="photo-preview-info">
+                <div class="photo-preview-name">アップロード済み</div>
+                <div class="photo-preview-renamed">→ ${z._photoName||''}</div>
+              </div>
+              <button class="photo-clear-btn" onclick="clearPhoto(${i})">✕</button>
+            </div>
+            `:`
+            <div class="photo-drop-zone"
+              ondragover="event.preventDefault();this.classList.add('dragover')"
+              ondragleave="this.classList.remove('dragover')"
+              ondrop="event.preventDefault();this.classList.remove('dragover');handlePhotoUpload(${i},event.dataTransfer.files[0])">
+              <input type="file" accept="image/*" onchange="handlePhotoUpload(${i},this.files[0])">
+              <div class="drop-hint">📁 クリック or ドラッグ&ドロップ<br><span>${previewFileName}</span> として保存</div>
+            </div>
+            `}
+          </div>
+        </div>
+        <div class="details-toggle-wrap">
+          <button class="btn-toggle-details" onclick="toggleDetails(${i})">${z.showDetails?'－ 詳細を隠す':'＋ 画像プロンプト・補足'}</button>
+        </div>
+        <div class="zone-details-area" style="display:${z.showDetails?'flex':'none'}">
+          <div class="zone-field">
+            <label>画像プロンプト（AI生成用ヒント）</label>
+            <textarea rows="2" placeholder="例: 笑顔の子供たち、明るい教室"
+              oninput="zones[${i}].image_prompt=this.value">${z.image_prompt||''}</textarea>
+          </div>
+          <div class="zone-field">
+            <label>補足・コンテキスト</label>
+            <textarea rows="2" placeholder="例: 左上配置のメインビジュアル"
+              oninput="zones[${i}].context=this.value">${z.context||''}</textarea>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function delZone(i){zones.splice(i,1);draw();renderList()}
+function clearAll(){zones=[];currentRect=null;draw();renderList();document.getElementById('output-wrap').style.display='none'}
+function collapseAll(){zones.forEach(z=>z.collapsed=true);renderList()}
+function generate(){
+  const fmtKey=document.getElementById('fmt').value;
+  const styleVal=document.getElementById('style').value;
+  const lightVal=document.getElementById('lighting').value;
+  const colorVal=document.getElementById('color').value;
+  const compVal=document.getElementById('composition').value;
+  const camVal=document.getElementById('camera').value;
+  const mood=document.getElementById('mood').value.trim();
+  const lines=[];
+  lines.push('=== ADVERTISEMENT IMAGE GENERATION PROMPT ===');lines.push('');
+  lines.push('[FORMAT]');lines.push(FMT[fmtKey].prompt);lines.push('');
+  lines.push('[STYLE & ATMOSPHERE]');
+  lines.push(STYLE_MAP[styleVal]);lines.push(LIGHT_MAP[lightVal]);lines.push(COLOR_MAP[colorVal]);
+  if(compVal)lines.push(COMP_MAP[compVal]);
+  if(camVal)lines.push(CAMERA_MAP[camVal]);
+  if(mood)lines.push('Target / mood: '+mood);
+  lines.push('');
+  const hasPhotos=zones.some(z=>z._photoName);
+  if(hasPhotos){
+    // ── 写真使用の強制指示（冒頭に置くことでGPTに最優先で認識させる）
+    lines.push('[!! CRITICAL PHOTO USAGE INSTRUCTIONS !!]');
+    lines.push('You have been provided with actual photo files in a ZIP archive.');
+    lines.push('These are REAL photographs taken specifically for this advertisement.');
+    lines.push('');
+    lines.push('ABSOLUTE RULES — violation of any of these is unacceptable:');
+    lines.push('  1. DO NOT generate, illustrate, or AI-create any image for zones that have a specified photo file.');
+    lines.push('  2. USE the provided photo files EXACTLY as supplied — do not alter, filter, or replace them.');
+    lines.push('  3. COMPOSITE each photo directly into its designated zone in the layout.');
+    lines.push('  4. The photos must appear as real photographs embedded in the final advertisement.');
+    lines.push('  5. If a zone says [USE PHOTO FILE: "filename.jpg"], that file MUST appear in that exact position.');
+    lines.push('');
+    lines.push('Photo file assignments:');
+    zones.forEach((z,i)=>{
+      if(z._photoName) lines.push('  [zone "'+(z.name||DEF_NAMES[i]||'Zone '+(i+1))+'"] <-- USE PHOTO FILE: "'+z._photoName+'" (DO NOT substitute or regenerate)');
+    });
+    lines.push('');
+  }
+  if(zones.length){
+    lines.push('[LAYOUT ZONES]');
+    lines.push('The image is divided into the following distinct visual zones.');
+    lines.push('DO NOT render any percentage numbers or dimension labels.');lines.push('');
+    const emph=zones.filter(z=>z.emphasized);
+    if(emph.length){
+      lines.push('* EMPHASIZED ZONES (most prominent visual focus):');
+      emph.forEach(z=>{
+        const i=zones.indexOf(z);const nm=z.name||DEF_NAMES[i]||'Zone '+(i+1);
+        lines.push('  - "'+nm+'" - placed at the '+POS_LABEL(z)+', '+SIZE_LABEL(z));
+        if(z._photoName){
+          lines.push('    [USE PHOTO FILE: "'+z._photoName+'"] — embed this real photograph directly. DO NOT generate a new image here.');
+        } else if(z.image_prompt){
+          lines.push('    Image/Subject: '+z.image_prompt);
+        }
+        if(z.heading)lines.push('    Exact Text to Render: "'+z.heading+'" (Must be rendered perfectly without typos or mutations)');
+        if(z.description)lines.push('    Details: '+z.description);
+        if(z.context)lines.push('    Context/Note: '+z.context);
+      });lines.push('');
+    }
+    const norm2=zones.filter(z=>!z.emphasized);
+    if(norm2.length){
+      lines.push('* SUPPORTING ZONES:');
+      norm2.forEach(z=>{
+        const i=zones.indexOf(z);const nm=z.name||DEF_NAMES[i]||'Zone '+(i+1);
+        lines.push('  - "'+nm+'" - placed at the '+POS_LABEL(z)+', '+SIZE_LABEL(z));
+        if(z._photoName){
+          lines.push('    [USE PHOTO FILE: "'+z._photoName+'"] — embed this real photograph directly. DO NOT generate a new image here.');
+        } else if(z.image_prompt){
+          lines.push('    Image/Subject: '+z.image_prompt);
+        }
+        if(z.heading)lines.push('    Exact Text to Render: "'+z.heading+'" (Must be rendered perfectly without typos or mutations)');
+        if(z.description)lines.push('    Details: '+z.description);
+        if(z.context)lines.push('    Context/Note: '+z.context);
+      });
+    }
+    if(zones.some(z=>z.heading)){lines.push('');lines.push('[TYPOGRAPHY & TEXT RENDERING]');lines.push('CRITICAL INSTRUCTION: The specified text MUST be rendered exactly as requested.');lines.push('Ensure all typography is crisp, legible, and perfectly formed.')}
+  }else{lines.push('[LAYOUT]');lines.push('Balanced composition with clear space.')}
+  lines.push('');
+  if(hasPhotos){
+    lines.push('[FINAL REMINDER — PHOTO USAGE]');
+    lines.push('The ZIP archive contains the actual photos listed above.');
+    lines.push('Every zone marked [USE PHOTO FILE] must show that exact photograph in the final output.');
+    lines.push('Treat each photo file as a mandatory asset, not a reference or inspiration.');
+    lines.push('');
+  }
+  lines.push('[QUALITY]');lines.push('High resolution 4K, print quality, sharp focus, ultra detailed, professional commercial photography.');
+  document.getElementById('output').textContent=lines.join('\n');
+  document.getElementById('output-wrap').style.display='block';
+  const zipBtn=document.getElementById('btn-zip');
+  zipBtn.style.display=hasPhotos?'':'none';
+  document.querySelectorAll('.side-tab').forEach((b,idx)=>{b.classList.toggle('active',idx===2)});
+  ['zones','settings','output'].forEach((t,idx)=>{document.getElementById('tab-'+t).style.display=idx===2?'':'none'});
+}
+function copyPrompt(){
+  const t=document.getElementById('output').textContent;
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=document.querySelector('.btn-copy-prim');
+    btn.textContent='✓ コピー済み';setTimeout(()=>{btn.textContent='📋 コピー'},1800);
+  });
+}
+async function downloadZip(){
+  const photos=zones.filter(z=>z._photoData&&z._photoName);
+  if(!photos.length){alert('写真がアップロードされていません');return}
+  const btn=document.getElementById('btn-zip');
+  const status=document.getElementById('zip-status');
+  btn.textContent='⏳ 作成中...';btn.disabled=true;
+  try{
+    if(!window.JSZip){
+      await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+    }
+    const zip=new JSZip();
+    for(const z of photos){const base64=z._photoData.split(',')[1];zip.file(z._photoName,base64,{base64:true})}
+    const blob=await zip.generateAsync({type:'blob'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ad_photos.zip';a.click();
+    status.innerHTML='<div class="zip-badge">✅ '+photos.length+'枚の写真をZIPにまとめました</div>';
+    setTimeout(()=>{status.innerHTML=''},4000);
+  }catch(e){alert('ZIPの作成に失敗: '+e.message)}
+  btn.textContent='📦 写真をZIPでダウンロード';btn.disabled=false;
+}
+
+</script>
+<script>
+const BUILTIN_TEMPLATES = [
+  // ========== 学童・塾 ==========
+  {
+    id:'gakudo_kenies', genre:'学童・塾', name:'学童チラシ – ケーニーズ型',
+    desc:'実際の広告に忠実な精密構成。写真6コマ・右バッジ・帯テキスト・フッター5列（26領域）',
+    zones:[
+      // ── ヘッダーエリア
+      {x:0,y:0,w:400,h:48,name:'施設名',heading:'ケーニーズクラブ 学童保育',description:'',image_prompt:'',context:'メインタイトル。上部全幅',emphasized:false,collapsed:true,showDetails:false},
+      // ── キャッチ・サブコピー帯
+      {x:45,y:50,w:250,h:30,name:'キャッチコピー',heading:'安心して過ごせる、成長できる放課後。',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:0,y:50,w:42,h:55,name:'サブコピー丸',heading:'笑顔があふれるもう一つのおうち',description:'',image_prompt:'',context:'左上丸バッジ',emphasized:false,collapsed:true,showDetails:false},
+      {x:0,y:82,w:400,h:24,name:'サブキャッチ帯',heading:'子ども一人ひとりが、自分らしく輝ける場所。',description:'',image_prompt:'',context:'全幅の帯テキスト',emphasized:true,collapsed:false,showDetails:false},
+      // ── 右カラム: 料金・利点バッジ
+      {x:298,y:107,w:100,h:118,name:'料金バッジ',heading:'週１日利用\n7,700円',description:'',image_prompt:'',context:'右上の価格強調バッジ',emphasized:true,collapsed:false,showDetails:false},
+      {x:298,y:228,w:100,h:112,name:'お迎えバッジ',heading:'小学校、幼稚園、保育園、トワイライトへのお迎えあり!!',description:'',image_prompt:'バスのイラスト',context:'右中バッジ',emphasized:true,collapsed:false,showDetails:true},
+      {x:298,y:343,w:100,h:82,name:'習い事バッジ',heading:'保護者の迎えを待っている間にケーニーズの習い事完結!!',description:'',image_prompt:'サッカー・音楽・鉛筆・ゲームのアイコン',context:'右下バッジ',emphasized:true,collapsed:false,showDetails:true},
+      // ── 写真グリッド（左・中）
+      {x:0,y:107,w:205,h:153,name:'写真_左大',heading:'',description:'',image_prompt:'子供たちが楽しく活動している写真（大コマ）',context:'左側大きめ写真',emphasized:false,collapsed:false,showDetails:true},
+      {x:208,y:107,w:87,h:73,name:'写真_右上1',heading:'',description:'',image_prompt:'子供たちの活動写真',context:'右上1枚目',emphasized:false,collapsed:false,showDetails:true},
+      {x:208,y:183,w:87,h:75,name:'写真_右上2',heading:'',description:'',image_prompt:'子供たちの活動写真',context:'右上2枚目',emphasized:false,collapsed:false,showDetails:true},
+      {x:0,y:263,w:205,h:78,name:'写真_左下',heading:'',description:'',image_prompt:'子供たちが外で活動している写真',context:'左下写真',emphasized:false,collapsed:false,showDetails:true},
+      {x:208,y:261,w:87,h:80,name:'写真_右下',heading:'',description:'',image_prompt:'子供たちの活動写真',context:'右下写真',emphasized:false,collapsed:false,showDetails:true},
+      // ── 帯テキスト
+      {x:5,y:344,w:200,h:24,name:'帯テキスト',heading:'★宿題も遊びも全力でやって楽しもう★',description:'',image_prompt:'',context:'写真エリア内の帯',emphasized:false,collapsed:true,showDetails:false},
+      // ── ポイントセクション
+      {x:0,y:428,w:400,h:32,name:'施設名再掲',heading:'ケーニーズクラブ 学童保育',description:'',image_prompt:'',context:'5つのポイントの上に再掲',emphasized:false,collapsed:true,showDetails:false},
+      {x:10,y:428,w:290,h:35,name:'5ポイント見出し',heading:'5つの安心ポイント',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      // ── 5ポイント
+      {x:0,y:466,w:78,h:72,name:'ポイント1',heading:'自分らしく輝ける場所',description:'ありのままの姿を受け入れ自分らしく過ごせるようにしています',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:80,y:466,w:78,h:72,name:'ポイント2',heading:'放課後が成長の時間に',description:'ただ預かるだけでなく遊びや体験を通して成長する時間へ',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:160,y:466,w:78,h:72,name:'ポイント3',heading:'柔軟に利用しやすい',description:'1日だけ・1時間だけ・長期休みだけでもOK',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:240,y:466,w:78,h:72,name:'ポイント4',heading:'安心して過ごせる場所',description:'子どもが楽しく、保護者の方は安心して預けられる場所です',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:320,y:466,w:78,h:72,name:'ポイント5',heading:'習い事もサポート',description:'ケーニーズ以外の習い事への送迎もあります',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      // ── 下部バナー
+      {x:0,y:540,w:400,h:46,name:'フッターバナー',heading:'放課後を、ただの預かり時間でなく、子どもが自分らしく輝く成長の時間に。',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      // ── フッター連絡先
+      {x:0,y:540,w:55,h:42,name:'お問合せ',heading:'お気軽にお問い合わせください！',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:58,y:540,w:95,h:42,name:'受付時間',heading:'お電話受付時間',description:'平日11:00〜19:30',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:156,y:540,w:80,h:42,name:'電話番号',heading:'電話番号',description:'0567-95-1151',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:239,y:540,w:90,h:42,name:'定休日',heading:'定休日',description:'土曜日・日曜日・祝日',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:332,y:540,w:66,h:42,name:'見学受付',heading:'見学・体験は随時受付中！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🏫 施設・基本情報', fields:[
+          {type:'text', key:'facility', label:'施設名', placeholder:'例: ケーニーズクラブ 学童保育', zoneIndex:0, default:'ケーニーズクラブ 学童保育'},
+          {type:'text', key:'catch', label:'キャッチコピー', placeholder:'例: 安心して過ごせる、成長できる放課後。', zoneIndex:1, default:'安心して過ごせる、成長できる放課後。'},
+          {type:'text', key:'subcatch', label:'サブキャッチ帯（全幅）', placeholder:'例: 子ども一人ひとりが、自分らしく輝ける場所。', zoneIndex:3, canEmphasize:true, emphasized:true, default:'子ども一人ひとりが、自分らしく輝ける場所。'},
+          {type:'text', key:'subcopy', label:'サブコピー（左上丸バッジ）', placeholder:'例: 笑顔があふれるもう一つのおうち', zoneIndex:2, default:'笑顔があふれるもう一つのおうち'},
+        ]},
+        {title:'💰 料金・強調バッジ', fields:[
+          {type:'text', key:'price', label:'料金（右上バッジ）', placeholder:'例: 週１日利用\n7,700円', zoneIndex:4, canEmphasize:true, emphasized:true, default:'週１日利用\n7,700円'},
+          {type:'text', key:'pickup', label:'お迎えサービス（右中バッジ）', placeholder:'例: 小学校・幼稚園・保育園・トワイライトへのお迎えあり!!', zoneIndex:5, canEmphasize:true, emphasized:true, default:'小学校、幼稚園、保育園、トワイライトへのお迎えあり!!'},
+          {type:'text', key:'lesson', label:'習い事サポート（右下バッジ）', placeholder:'例: 保護者の迎えを待っている間にケーニーズの習い事完結!!', zoneIndex:6, canEmphasize:true, emphasized:true, default:'保護者の迎えを待っている間にケーニーズの習い事完結!!'},
+          {type:'text', key:'obi', label:'写真エリア内 帯テキスト', placeholder:'例: ★宿題も遊びも全力でやって楽しもう★', zoneIndex:13, default:'★宿題も遊びも全力でやって楽しもう★'},
+        ]},
+        {title:'⭐ 安心ポイント（動的追加可）', fields:[
+          {type:'text', key:'points_title', label:'ポイントセクション見出し', placeholder:'例: 5つの安心ポイント', zoneIndex:15, canEmphasize:true, emphasized:true, default:'5つの安心ポイント'},
+          {type:'dynlist', key:'points', label:'安心ポイント', subfield:'詳細説明（任意）', canEmphasize:true, addLabel:'ポイントを追加', startZoneIndex:16, tplCount:5,
+            defaults:[
+              {heading:'自分らしく輝ける場所', desc:'ありのままの姿を受け入れ自分らしく過ごせるようにしています'},
+              {heading:'放課後が成長の時間に', desc:'ただ預かるだけでなく遊びや体験を通して成長する時間へ'},
+              {heading:'柔軟に利用しやすい', desc:'1日だけ・1時間だけ・長期休みだけでもOK'},
+              {heading:'安心して過ごせる場所', desc:'子どもが楽しく、保護者の方は安心して預けられる場所です'},
+              {heading:'習い事もサポート', desc:'ケーニーズ以外の習い事への送迎もあります'}
+            ]},
+        ]},
+        {title:'📢 下部バナー・連絡先', fields:[
+          {type:'text', key:'banner', label:'フッターバナーメッセージ', placeholder:'例: 放課後を、ただの預かり時間でなく...', zoneIndex:21, canEmphasize:true, emphasized:true, default:'放課後を、ただの預かり時間でなく、子どもが自分らしく輝く成長の時間に。'},
+          {type:'row', cols:[
+            {key:'hours', label:'受付時間', placeholder:'例: 平日11:00〜19:30', zoneIndexDesc:23, default:'平日11:00〜19:30'},
+            {key:'tel', label:'電話番号', placeholder:'例: 0567-95-1151', zoneIndexDesc:24, default:'0567-95-1151'},
+            {key:'closed', label:'定休日', placeholder:'例: 土曜日・日曜日・祝日', zoneIndexDesc:25, default:'土曜日・日曜日・祝日'},
+          ]},
+        ]},
+      ]
+    }
+    },
+  {
+    id:'gakudo_simple', genre:'学童・塾', name:'学童チラシ – シンプル型',
+    desc:'施設名・特徴3点・写真・連絡先のコンパクト構成（8領域）',
+    zones:[
+      {x:10,y:10,w:380,h:55,name:'施設名',heading:'○○学童クラブ',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:70,w:380,h:35,name:'キャッチ',heading:'放課後の第二のおうち',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:110,w:380,h:180,name:'メイン写真',heading:'',description:'',image_prompt:'子供たちが楽しく過ごしている室内写真',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:295,w:118,h:90,name:'特徴1',heading:'安心の見守り',description:'スタッフが常駐。お子様を安全にお預かりします',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:134,y:295,w:118,h:90,name:'特徴2',heading:'充実した学習サポート',description:'宿題サポートや読書など自主的な学びを応援',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:254,y:295,w:136,h:90,name:'特徴3',heading:'楽しいイベント',description:'季節ごとのイベントで思い出いっぱい',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:390,w:380,h:110,name:'料金・利用案内',heading:'ご利用料金',description:'月額 ○○円〜 / 一日利用も可 / 送迎あり',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:505,w:380,h:52,name:'連絡先',heading:'お問い合わせ・見学随時受付',description:'TEL: 000-000-0000 / 受付 平日9:00〜18:00',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🏫 施設・基本情報', fields:[
+          {type:'text', key:'facility', label:'施設名', placeholder:'例: ○○学童クラブ', zoneIndex:0, default:'○○学童クラブ'},
+          {type:'text', key:'catch', label:'キャッチコピー', placeholder:'例: 放課後の第二のおうち', zoneIndex:1, canEmphasize:true, emphasized:true, default:'放課後の第二のおうち'},
+        ]},
+        {title:'✨ 特徴・強み（動的追加可）', fields:[
+          {type:'dynlist', key:'features', label:'特徴・強み', subfield:'詳細説明（任意）', canEmphasize:true, addLabel:'特徴を追加', startZoneIndex:3, tplCount:3,
+            defaults:[
+              {heading:'安心の見守り', desc:'スタッフが常駐。お子様を安全にお預かりします'},
+              {heading:'充実した学習サポート', desc:'宿題サポートや読書など自主的な学びを応援'},
+              {heading:'楽しいイベント', desc:'季節ごとのイベントで思い出いっぱい'}
+            ]},
+        ]},
+        {title:'💰 料金・利用案内', fields:[
+          {type:'textarea', key:'price', label:'料金・利用案内', placeholder:'例: 月額 ○○円〜 / 一日利用も可 / 送迎あり', zoneIndex:6, canEmphasize:true, emphasized:true, default:'月額 ○○円〜 / 一日利用も可 / 送迎あり', rows:2},
+        ]},
+        {title:'📞 連絡先', fields:[
+          {type:'text', key:'contact', label:'問い合わせ・連絡先', placeholder:'例: TEL: 000-000-0000 / 受付 平日9:00〜18:00', zoneIndex:7, default:'TEL: 000-000-0000 / 受付 平日9:00〜18:00'},
+        ]},
+      ]
+    }
+  },
+  {
+    id:'juku_standard', genre:'学童・塾', name:'学習塾チラシ – 標準型',
+    desc:'合格実績・コース紹介・無料体験訴求（10領域）',
+    zones:[
+      {x:0,y:0,w:400,h:65,name:'塾名ヘッダー',heading:'○○学習塾',description:'小学生〜高校生対応',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:70,w:380,h:50,name:'実績バナー',heading:'今年度 合格実績 ○○名！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:125,w:380,h:150,name:'メイン写真',heading:'',description:'',image_prompt:'明るい教室で勉強する子供たち',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:280,w:183,h:80,name:'コース1',heading:'個別指導コース',description:'一人ひとりに合わせたカリキュラム',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:280,w:183,h:80,name:'コース2',heading:'集団授業コース',description:'仲間と切磋琢磨しながら実力UP',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:365,w:183,h:80,name:'コース3',heading:'映像授業コース',description:'自分のペースで何度でも復習',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:365,w:183,h:80,name:'コース4',heading:'受験特訓コース',description:'難関校合格を目指す集中プログラム',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:450,w:380,h:55,name:'無料体験',heading:'無料体験授業 受付中！',description:'まずは一度、お気軽にご体験ください',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:510,w:190,h:45,name:'電話',heading:'TEL: 000-000-0000',description:'受付 月〜土 10:00〜21:00',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:510,w:183,h:45,name:'住所',heading:'○○市○○町 ○丁目○番地',description:'○○駅 徒歩5分',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🏫 塾・基本情報', fields:[
+          {type:'text', key:'name', label:'塾名', placeholder:'例: ○○学習塾', zoneIndex:0, default:'○○学習塾'},
+          {type:'text', key:'achievement', label:'実績・アピール（強調バナー）', placeholder:'例: 今年度 合格実績 ○○名！', zoneIndex:1, canEmphasize:true, emphasized:true, default:'今年度 合格実績 ○○名！'},
+        ]},
+        {title:'📚 コース紹介（動的追加可）', fields:[
+          {type:'dynlist', key:'courses', label:'コース', subfield:'コース説明', canEmphasize:true, addLabel:'コースを追加', startZoneIndex:3, tplCount:4,
+            defaults:[
+              {heading:'個別指導コース', desc:'一人ひとりに合わせたカリキュラム'},
+              {heading:'集団授業コース', desc:'仲間と切磋琢磨しながら実力UP'},
+              {heading:'映像授業コース', desc:'自分のペースで何度でも復習'},
+              {heading:'受験特訓コース', desc:'難関校合格を目指す集中プログラム'}
+            ]},
+        ]},
+        {title:'🎁 キャンペーン', fields:[
+          {type:'text', key:'campaign', label:'キャンペーン・特典', placeholder:'例: 無料体験授業 受付中！', zoneIndex:7, canEmphasize:true, emphasized:true, default:'無料体験授業 受付中！'},
+        ]},
+        {title:'📞 連絡先', fields:[
+          {type:'row', cols:[
+            {key:'tel', label:'電話番号', placeholder:'例: 000-000-0000', zoneIndex:8, default:'TEL: 000-000-0000'},
+            {key:'addr', label:'住所・アクセス', placeholder:'例: ○○駅 徒歩5分', zoneIndex:9, default:'○○市○○町 ○○駅 徒歩5分'},
+          ]},
+        ]},
+      ]
+    }
+  },
+
+  // ========== スーパー・食料品 ==========
+  {
+    id:'super_weekly', genre:'スーパー・食料品', name:'スーパー折込チラシ – 週末特売型',
+    desc:'目玉商品大・価格帯・売り場カテゴリ分け（14領域）',
+    zones:[
+      {x:0,y:0,w:400,h:48,name:'店名ヘッダー',heading:'○○スーパー',description:'毎週末感謝セール',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:0,y:50,w:400,h:35,name:'開催期間',heading:'6月14日（土）・15日（日）限定！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:0,y:88,w:195,h:130,name:'目玉1',heading:'国産牛ロース',description:'100g あたり ¥298（税込）',image_prompt:'juicy beef steak, red meat close-up',context:'最大の強調エリア',emphasized:true,collapsed:false,showDetails:true},
+      {x:205,y:88,w:195,h:130,name:'目玉2',heading:'朝獲れ鮮魚盛り合わせ',description:'1パック ¥580（税込）',image_prompt:'fresh sashimi assortment plate',context:'',emphasized:true,collapsed:false,showDetails:true},
+      {x:0,y:222,w:130,h:90,name:'野菜コーナー',heading:'地元産 きゅうり',description:'3本 ¥98',image_prompt:'fresh green cucumbers',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:135,y:222,w:130,h:90,name:'果物コーナー',heading:'熊本産 スイカ',description:'1玉 ¥1,280',image_prompt:'big watermelon summer fruit',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:270,y:222,w:130,h:90,name:'惣菜コーナー',heading:'手作り唐揚げ弁当',description:'¥498（税込）',image_prompt:'Japanese bento karaage lunch box',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:0,y:316,w:195,h:90,name:'特売1',heading:'明治牛乳 1L',description:'¥158（税込）　2本で¥300',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:316,w:195,h:90,name:'特売2',heading:'食パン 6枚切',description:'¥118（税込）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:0,y:410,w:195,h:90,name:'特売3',heading:'トマト缶（400g）',description:'¥88（税込）　3缶セット¥250',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:410,w:195,h:90,name:'特売4',heading:'国産鶏むね肉',description:'100g ¥58（税込）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:0,y:504,w:135,h:38,name:'ポイント情報',heading:'ポイント5倍デー！',description:'会員カード提示で5倍',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:140,y:504,w:130,h:38,name:'営業時間',heading:'営業時間',description:'9:00〜21:00',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:275,y:504,w:120,h:38,name:'店舗情報',heading:'○○市○○町',description:'TEL:000-0000-0000',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🏪 店舗・開催情報', fields:[
+          {type:'text', key:'storename', label:'店舗名', placeholder:'例: ○○スーパー', zoneIndex:0, default:'○○スーパー'},
+          {type:'text', key:'period', label:'開催期間・キャンペーン名', placeholder:'例: 6月14日（土）・15日（日）限定！', zoneIndex:1, canEmphasize:true, emphasized:true, default:'6月14日（土）・15日（日）限定！'},
+        ]},
+        {title:'🥩 目玉商品（動的追加可）', fields:[
+          {type:'dynlist', key:'targets', label:'目玉商品', subfield:'価格・説明', canEmphasize:true, addLabel:'目玉商品を追加', startZoneIndex:2, tplCount:2,
+            defaults:[
+              {heading:'国産牛ロース', desc:'100g あたり ¥298（税込）', _emph:true},
+              {heading:'朝獲れ鮮魚盛り合わせ', desc:'1パック ¥580（税込）', _emph:true}
+            ]},
+        ]},
+        {title:'🥬 特売商品（動的追加可）', fields:[
+          {type:'dynlist', key:'sales', label:'特売商品', subfield:'価格', canEmphasize:false, addLabel:'特売商品を追加', startZoneIndex:7, tplCount:4,
+            defaults:[
+              {heading:'明治牛乳 1L', desc:'¥158（税込）　2本で¥300'},
+              {heading:'食パン 6枚切', desc:'¥118（税込）'},
+              {heading:'トマト缶（400g）', desc:'¥88（税込）　3缶セット¥250'},
+              {heading:'国産鶏むね肉', desc:'100g ¥58（税込）'}
+            ]},
+        ]},
+        {title:'📞 店舗情報', fields:[
+          {type:'row', cols:[
+            {key:'point', label:'ポイント情報', placeholder:'例: ポイント5倍デー！', zoneIndex:11, default:'ポイント5倍デー！'},
+            {key:'hours', label:'営業時間', placeholder:'例: 9:00〜21:00', zoneIndexDesc:12, default:'9:00〜21:00'},
+            {key:'addr', label:'住所・電話', placeholder:'例: ○○市○○町', zoneIndexDesc:13, default:'○○市○○町'},
+          ]},
+        ]},
+      ]
+    }
+  },
+  {
+    id:'super_new_open', genre:'スーパー・食料品', name:'スーパー – 新規オープン告知型',
+    desc:'オープン日・目玉・来店特典・アクセス（11領域）',
+    zones:[
+      {x:0,y:0,w:400,h:60,name:'店名',heading:'○○ストア ○○店',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:65,w:380,h:70,name:'オープン告知',heading:'GRAND OPEN！',description:'6月28日（土）いよいよオープン！',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:140,w:380,h:120,name:'外観写真',heading:'',description:'',image_prompt:'bright modern supermarket exterior, grand opening',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:265,w:380,h:40,name:'特典バナー',heading:'オープン記念！全品10%OFF！',description:'6月28日・29日限定',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:310,w:118,h:80,name:'特産品1',heading:'地元野菜コーナー',description:'地域農家直送品を毎日入荷',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:134,y:310,w:118,h:80,name:'特産品2',heading:'鮮魚・精肉専門コーナー',description:'プロの目利きが選ぶ新鮮素材',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:254,y:310,w:136,h:80,name:'特産品3',heading:'惣菜・デリカ',description:'毎日手作り。出来立てをご提供',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:395,w:255,h:85,name:'アクセス',heading:'アクセス',description:'○○市○○町1-1\n○○線「○○駅」東口 徒歩3分 / 駐車場200台',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:395,w:120,h:85,name:'地図',heading:'',description:'',image_prompt:'simple store location map illustration',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:485,w:255,h:45,name:'営業情報',heading:'営業時間 8:00〜22:00（年中無休）',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:485,w:120,h:45,name:'来店特典',heading:'先着100名様',description:'粗品プレゼント！',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+    ]
+  },
+
+  // ========== 飲食店 ==========
+  {
+    id:'restaurant_standard', genre:'飲食店', name:'レストラン – ランチ・ディナー告知型',
+    desc:'メニュー写真大・価格・営業時間・地図（10領域）',
+    zones:[
+      {x:0,y:0,w:400,h:55,name:'店名',heading:'○○レストラン',description:'本格イタリアン',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:60,w:380,h:40,name:'キャッチ',heading:'旬の食材を使った極上の一皿',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:105,w:380,h:160,name:'料理写真',heading:'',description:'',image_prompt:'gourmet Italian pasta dish, elegant restaurant photo',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:270,w:183,h:100,name:'ランチ',heading:'ランチコース',description:'前菜・パスタ・デザート・ドリンク\n¥1,500（税込）',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:205,y:270,w:183,h:100,name:'ディナー',heading:'ディナーコース',description:'前菜・スープ・メイン・デザート\n¥4,800〜（税込）',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:375,w:183,h:70,name:'メニュー1',heading:'本日のパスタ',description:'¥980（税込）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:375,w:183,h:70,name:'メニュー2',heading:'マルゲリータピザ',description:'¥1,200（税込）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:450,w:255,h:60,name:'アクセス',heading:'○○市○○町2-3-1 ○○ビル1F',description:'○○線「○○駅」南口 徒歩2分',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:450,w:120,h:60,name:'地図',heading:'',description:'',image_prompt:'simple restaurant location map',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:515,w:380,h:42,name:'予約・問合',heading:'ご予約・お問い合わせ',description:'TEL: 000-000-0000 / 営業 11:30〜14:00・17:30〜22:00（月曜定休）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🍽 店舗・基本情報', fields:[
+          {type:'text', key:'name', label:'店名', placeholder:'例: ○○レストラン', zoneIndex:0, default:'○○レストラン'},
+          {type:'text', key:'catch', label:'キャッチコピー', placeholder:'例: 旬の食材を使った極上の一皿', zoneIndex:1, canEmphasize:true, emphasized:true, default:'旬の食材を使った極上の一皿'},
+        ]},
+        {title:'🍱 コース・メニュー（動的追加可）', fields:[
+          {type:'dynlist', key:'courses', label:'コース・メニュー', subfield:'価格・内容説明', canEmphasize:true, addLabel:'メニューを追加', startZoneIndex:3, tplCount:2,
+            defaults:[
+              {heading:'ランチコース', desc:'前菜・パスタ・デザート・ドリンク\n¥1,500（税込）', _emph:true},
+              {heading:'ディナーコース', desc:'前菜・スープ・メイン・デザート\n¥4,800〜（税込）', _emph:true}
+            ]},
+          {type:'dynlist', key:'items', label:'単品メニュー', subfield:'価格', canEmphasize:false, addLabel:'単品を追加', startZoneIndex:5, tplCount:2,
+            defaults:[
+              {heading:'本日のパスタ', desc:'¥980（税込）'},
+              {heading:'マルゲリータピザ', desc:'¥1,200（税込）'}
+            ]},
+        ]},
+        {title:'📞 アクセス・予約', fields:[
+          {type:'text', key:'access', label:'住所・アクセス', placeholder:'例: ○○市○○町 ○○駅 徒歩2分', zoneIndex:7, default:'○○市○○町 ○○駅 徒歩2分'},
+          {type:'text', key:'tel', label:'電話・営業時間', placeholder:'例: TEL: 000-000-0000 / 11:30〜22:00', zoneIndex:9, default:'TEL: 000-000-0000'},
+        ]},
+      ]
+    }
+  },
+  {
+    id:'cafe_new', genre:'飲食店', name:'カフェ – 新メニュー告知型',
+    desc:'新商品ビジュアル大・SNS誘導・テイクアウト訴求（9領域）',
+    zones:[
+      {x:0,y:0,w:400,h:50,name:'店名',heading:'Cafe ○○',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:55,w:380,h:45,name:'新メニュー告知',heading:'NEW MENU 登場！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:105,w:380,h:200,name:'商品写真',heading:'',description:'',image_prompt:'beautiful latte art coffee cup, cafe aesthetic, overhead shot',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:310,w:183,h:80,name:'新商品1',heading:'抹茶ラテ',description:'¥680（税込）ホット/アイス選択可',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:310,w:183,h:80,name:'新商品2',heading:'ベリースムージー',description:'¥720（税込）フルーツ盛り',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:395,w:255,h:75,name:'テイクアウト',heading:'テイクアウトOK！',description:'全ドリンク・フードご対応\nモバイルオーダーも利用可',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:270,y:395,w:120,h:75,name:'SNS',heading:'@cafe_xxx',description:'InstagramでクーポンGET！',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:475,w:380,h:50,name:'営業情報',heading:'営業時間 9:00〜20:00（火曜定休）',description:'○○市○○町 / TEL: 000-0000-0000',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:530,w:380,h:30,name:'駐車場',heading:'駐車場10台完備　Wi-Fi無料',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+    ]
+  },
+
+  // ========== 不動産 ==========
+  {
+    id:'realestate_sale', genre:'不動産', name:'不動産 – 売り出し物件チラシ型',
+    desc:'物件写真大・価格・間取り・地図・問合せ（12領域）',
+    zones:[
+      {x:0,y:0,w:400,h:50,name:'会社名',heading:'○○不動産',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:10,y:55,w:380,h:45,name:'物件種別',heading:'新築一戸建 販売開始！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:105,w:255,h:160,name:'外観写真',heading:'',description:'',image_prompt:'beautiful new Japanese house exterior, sunny day',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:270,y:105,w:120,h:160,name:'内観写真',heading:'',description:'',image_prompt:'bright modern Japanese living room interior',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:270,w:380,h:55,name:'価格',heading:'3,480万円（税込）',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:330,w:183,h:80,name:'物件概要1',heading:'物件概要',description:'所在地: ○○市○○町\n土地面積: 120.50㎡\n建物面積: 98.30㎡',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:330,w:183,h:80,name:'物件概要2',heading:'間取り / 築年数',description:'4LDK\n2025年3月築（新築）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:415,w:183,h:80,name:'間取り図',heading:'',description:'',image_prompt:'simple floor plan layout 4LDK',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:205,y:415,w:183,h:80,name:'地図',heading:'',description:'',image_prompt:'simple neighborhood map, station location',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:500,w:255,h:35,name:'最寄り駅',heading:'○○線「○○駅」 徒歩8分',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:500,w:120,h:35,name:'現地見学',heading:'見学無料！',description:'要予約',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:540,w:380,h:22,name:'問合せ',heading:'TEL: 000-000-0000 / 営業 10:00〜18:00（水曜定休）',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+    ]
+  },
+
+  // ========== 美容院・サロン ==========
+  {
+    id:'salon_campaign', genre:'美容院・サロン', name:'美容院 – キャンペーン訴求型',
+    desc:'割引強調・メニュー紹介・Before/After・予約誘導（10領域）',
+    zones:[
+      {x:0,y:0,w:400,h:55,name:'サロン名',heading:'HAIR SALON ○○',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:60,w:380,h:50,name:'キャンペーン',heading:'初回限定 20%OFF キャンペーン！',description:'6月30日まで',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:115,w:183,h:150,name:'Before/After',heading:'',description:'',image_prompt:'hair salon before and after transformation photo',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:205,y:115,w:183,h:150,name:'スタイル写真',heading:'',description:'',image_prompt:'stylish Japanese woman hair cut salon photo',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:270,w:116,h:85,name:'メニュー1',heading:'カット',description:'¥4,000〜\n（初回¥3,200）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:132,y:270,w:116,h:85,name:'メニュー2',heading:'カラー',description:'¥7,000〜\n（初回¥5,600）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:254,y:270,w:136,h:85,name:'メニュー3',heading:'パーマ',description:'¥8,000〜\n（初回¥6,400）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:360,w:380,h:80,name:'こだわり',heading:'当店のこだわり',description:'・厳選オーガニック薬剤使用\n・完全個室でリラックス\n・子連れOK・駐車場あり',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:445,w:255,h:60,name:'アクセス',heading:'○○市○○町 ○○ビル2F',description:'○○線「○○駅」 徒歩3分',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:445,w:120,h:60,name:'予約',heading:'ご予約',description:'TEL: 000-000-0000\nLine予約もOK',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'💇 サロン基本情報', fields:[
+          {type:'text', key:'name', label:'サロン名', placeholder:'例: HAIR SALON ○○', zoneIndex:0, default:'HAIR SALON ○○'},
+          {type:'text', key:'campaign', label:'キャンペーン内容', placeholder:'例: 初回限定 20%OFF キャンペーン！', zoneIndex:1, canEmphasize:true, emphasized:true, default:'初回限定 20%OFF キャンペーン！'},
+        ]},
+        {title:'✂ メニュー・料金（動的追加可）', fields:[
+          {type:'dynlist', key:'menus', label:'メニュー', subfield:'価格（通常→割引後など）', canEmphasize:true, addLabel:'メニューを追加', startZoneIndex:4, tplCount:3,
+            defaults:[
+              {heading:'カット', desc:'¥4,000〜（初回¥3,200）'},
+              {heading:'カラー', desc:'¥7,000〜（初回¥5,600）'},
+              {heading:'パーマ', desc:'¥8,000〜（初回¥6,400）'}
+            ]},
+        ]},
+        {title:'🌿 こだわり・強み（動的追加可）', fields:[
+          {type:'dynlist', key:'features', label:'こだわり・強み', subfield:'', canEmphasize:false, addLabel:'こだわりを追加', startZoneIndex:7, tplCount:1,
+            defaults:[
+              {heading:'当店のこだわり', desc:'・厳選オーガニック薬剤使用\n・完全個室でリラックス\n・子連れOK・駐車場あり'}
+            ]},
+        ]},
+        {title:'📞 アクセス・予約', fields:[
+          {type:'text', key:'access', label:'住所・アクセス', placeholder:'例: ○○市○○町 ○○駅 徒歩3分', zoneIndex:8, default:'○○市○○町 ○○ビル2F'},
+          {type:'text', key:'tel', label:'予約・電話', placeholder:'例: TEL: 000-000-0000', zoneIndex:9, default:'TEL: 000-000-0000'},
+        ]},
+      ]
+    }
+  },
+
+  // ========== イベント・地域 ==========
+  {
+    id:'event_fes', genre:'イベント・地域', name:'地域イベント – お祭り・フェス告知型',
+    desc:'日時・場所・プログラム・出演者・アクセス（11領域）',
+    zones:[
+      {x:0,y:0,w:400,h:60,name:'イベント名',heading:'○○夏まつり 2025',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:65,w:380,h:55,name:'日時・場所',heading:'8月15日（金）〜17日（日）',description:'○○公園 大芝生広場',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:125,w:380,h:150,name:'メインビジュアル',heading:'',description:'',image_prompt:'colorful summer festival fireworks night sky Japan',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:280,w:183,h:70,name:'プログラム1',heading:'盆踊り大会',description:'毎夜 19:00〜21:00',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:280,w:183,h:70,name:'プログラム2',heading:'花火大会',description:'17日最終日 20:30〜',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:355,w:183,h:70,name:'プログラム3',heading:'キッチンカー30店舗',description:'地元グルメ大集合！',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:355,w:183,h:70,name:'プログラム4',heading:'ステージライブ',description:'地元バンド・よさこい演舞',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:430,w:380,h:50,name:'入場料',heading:'入場無料！ どなたでもご来場ください',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:485,w:255,h:45,name:'アクセス',heading:'○○線「○○駅」 徒歩10分',description:'臨時駐車場あり（1日 500円）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:485,w:120,h:45,name:'主催',heading:'主催: ○○市',description:'TEL: 000-000-0000',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:10,y:535,w:380,h:25,name:'SNS',heading:'公式Instagram @○○matsuri で最新情報をチェック！',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+    ],
+    schema:{
+      sections:[
+        {title:'🎉 イベント基本情報', fields:[
+          {type:'text', key:'name', label:'イベント名', placeholder:'例: ○○夏まつり 2025', zoneIndex:0, default:'○○夏まつり 2025'},
+          {type:'text', key:'datetime', label:'日時・場所', placeholder:'例: 8月15日〜17日 ○○公園', zoneIndex:1, canEmphasize:true, emphasized:true, default:'8月15日（金）〜17日（日） ○○公園 大芝生広場'},
+        ]},
+        {title:'🎪 プログラム（動的追加可）', fields:[
+          {type:'dynlist', key:'programs', label:'プログラム・催し物', subfield:'詳細・時間', canEmphasize:false, addLabel:'プログラムを追加', startZoneIndex:3, tplCount:4,
+            defaults:[
+              {heading:'盆踊り大会', desc:'毎夜 19:00〜21:00'},
+              {heading:'花火大会', desc:'17日最終日 20:30〜'},
+              {heading:'キッチンカー30店舗', desc:'地元グルメ大集合！'},
+              {heading:'ステージライブ', desc:'地元バンド・よさこい演舞'}
+            ]},
+        ]},
+        {title:'📢 入場・アクセス', fields:[
+          {type:'text', key:'admission', label:'入場料・告知', placeholder:'例: 入場無料！ どなたでもご来場ください', zoneIndex:7, canEmphasize:true, emphasized:true, default:'入場無料！ どなたでもご来場ください'},
+          {type:'text', key:'access', label:'アクセス', placeholder:'例: ○○駅 徒歩10分', zoneIndex:8, default:'○○線「○○駅」 徒歩10分'},
+          {type:'text', key:'organizer', label:'主催・問い合わせ', placeholder:'例: 主催: ○○市 TEL: 000-000-0000', zoneIndex:9, default:'主催: ○○市 TEL: 000-000-0000'},
+        ]},
+      ]
+    }
+  },
+  {
+    id:'event_seminar', genre:'イベント・地域', name:'セミナー・説明会 告知型',
+    desc:'テーマ・日時・登壇者・申込方法（9領域）',
+    zones:[
+      {x:10,y:10,w:380,h:45,name:'主催名',heading:'○○株式会社 主催',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+      {x:10,y:60,w:380,h:70,name:'セミナー名',heading:'起業・副業 はじめの一歩セミナー',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:135,w:380,h:130,name:'キービジュアル',heading:'',description:'',image_prompt:'professional business seminar presentation audience photo',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:270,w:183,h:55,name:'日時',heading:'開催日時',description:'7月10日（木）19:00〜20:30',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:270,w:183,h:55,name:'会場',heading:'会場',description:'○○市 ○○ホール 201号室\n（オンライン同時配信）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:330,w:380,h:75,name:'登壇者',heading:'登壇者: ○○ ○○ 氏',description:'元△△社 営業部長。独立後3年で年商1億円を達成。著書「はじめての起業」他',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:410,w:380,h:60,name:'参加費',heading:'参加費: 無料（事前申込制）',description:'定員 50名（先着順）',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:475,w:380,h:55,name:'申込方法',heading:'申込方法',description:'QRコード または TEL: 000-000-0000\n締切: 7月8日（火）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:535,w:380,h:25,name:'注意事項',heading:'※定員に達し次第、締め切ります。詳細はWebサイトをご確認ください。',description:'',image_prompt:'',context:'',emphasized:false,collapsed:true,showDetails:false},
+    ]
+  },
+
+  // ========== 医療・クリニック ==========
+  {
+    id:'clinic_open', genre:'医療・クリニック', name:'クリニック – 開院告知型',
+    desc:'院名・診療科目・医師紹介・予約方法（10領域）',
+    zones:[
+      {x:0,y:0,w:400,h:60,name:'院名',heading:'○○クリニック',description:'内科・小児科',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:65,w:380,h:50,name:'開院告知',heading:'7月1日（火）開院！',description:'',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+      {x:10,y:120,w:255,h:130,name:'外観写真',heading:'',description:'',image_prompt:'clean modern medical clinic exterior bright',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:270,y:120,w:120,h:130,name:'医師写真',heading:'',description:'',image_prompt:'friendly Japanese doctor portrait white coat',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:255,w:380,h:60,name:'医師紹介',heading:'院長: ○○ ○○ 医師',description:'○○大学医学部卒。○○病院勤務を経て地域医療に貢献',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:320,w:183,h:80,name:'診療時間',heading:'診療時間',description:'月〜金 9:00〜18:00\n土 9:00〜13:00\n（木・日・祝休診）',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:205,y:320,w:183,h:80,name:'診療科目',heading:'診療科目',description:'内科・小児科・アレルギー科\n予防接種・各種健診',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:10,y:405,w:255,h:70,name:'アクセス',heading:'○○市○○町 ○○ビル1F',description:'○○線「○○駅」 徒歩5分\n駐車場10台完備',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false},
+      {x:270,y:405,w:120,h:70,name:'地図',heading:'',description:'',image_prompt:'clinic location map simple illustration',context:'',emphasized:false,collapsed:false,showDetails:true},
+      {x:10,y:480,w:380,h:60,name:'予約・問合',heading:'ご予約・お問い合わせ',description:'TEL: 000-000-0000 / Web予約: https://example.com',image_prompt:'',context:'',emphasized:true,collapsed:false,showDetails:false},
+    ]
+  },
+];
+
+// ── ジャンル一覧
+const GENRES = ['すべて', ...new Set(BUILTIN_TEMPLATES.map(t=>t.genre))];
+
+// ── ユーザー保存テンプレ
+function loadUserTpls(){
+  try{ return JSON.parse(localStorage.getItem('kaimei_tpls')||'[]'); }catch{return []}
+}
+function saveUserTpls(arr){localStorage.setItem('kaimei_tpls', JSON.stringify(arr))}
+
+// ── テンプレモーダル開閉
+let tplActiveGenre = 'すべて';
+function openTplModal(){
+  document.getElementById('tpl-modal').style.display='flex';
+  renderTplTabs();
+  renderTplGrid();
+}
+function closeTplModal(){
+  document.getElementById('tpl-modal').style.display='none';
+}
+
+function renderTplTabs(){
+  const userTpls = loadUserTpls();
+  const genres = [...GENRES];
+  if(userTpls.length) genres.push('💾 保存済み');
+  document.getElementById('tpl-tabs').innerHTML = genres.map(g=>
+    `<button class="tpl-tab${tplActiveGenre===g?' active':''}" onclick="switchTplTab('${g}')">${g}</button>`
+  ).join('');
+}
+
+function switchTplTab(genre){
+  tplActiveGenre = genre;
+  renderTplTabs();
+  renderTplGrid();
+}
+
+function renderTplGrid(){
+  const userTpls = loadUserTpls();
+  let items;
+  if(tplActiveGenre === '💾 保存済み'){
+    items = userTpls.map(t=>({...t, _user:true}));
+  } else if(tplActiveGenre === 'すべて'){
+    items = [...BUILTIN_TEMPLATES, ...userTpls.map(t=>({...t, _user:true}))];
+  } else {
+    items = BUILTIN_TEMPLATES.filter(t=>t.genre===tplActiveGenre);
+    if(!items.length && tplActiveGenre !== '💾 保存済み'){
+      items = userTpls.filter(t=>t.genre===tplActiveGenre).map(t=>({...t, _user:true}));
+    }
+  }
+
+  const grid = document.getElementById('tpl-grid');
+  if(!items.length){
+    grid.innerHTML = '<div class="no-tpl-hint">テンプレートがありません</div>';
+    return;
+  }
+  grid.innerHTML = items.map((t,idx)=>`
+    <div class="tpl-card${t._user?' user-saved':''}" onclick="applyTemplate('${t.id||'user_'+idx}', ${t._user?1:0})">
+      <div class="tc-genre">${t._user?'💾 保存済み':t.genre}${t._user?`<button class="tpl-del-btn" onclick="event.stopPropagation();deleteUserTpl('${t.id}')">🗑削除</button>`:''}</div>
+      <div class="tc-name">${t.name}</div>
+      <div class="tc-desc">${t.desc||''}</div>
+      <div class="tc-zones">📐 ${t.zones.length} 領域</div>
+    </div>`).join('');
+}
+
+function applyTemplate(id, isUser){
+  let tpl;
+  if(isUser){
+    tpl = loadUserTpls().find(t=>t.id===id);
+  } else {
+    tpl = BUILTIN_TEMPLATES.find(t=>t.id===id);
+  }
+  if(!tpl) return;
+  // ユーザー保存テンプレはschemaなし→直接適用
+  if(isUser || !tpl.schema){
+    const ok = zones.length===0 || confirm('現在の領域をすべて削除してテンプレートを読み込みますか？');
+    if(!ok) return;
+    zones = tpl.zones.map(z=>({...z}));
+    setMode('move'); draw(); renderList(); closeTplModal();
+    return;
+  }
+  // schema付き→詳細設定画面へ
+  openCfgModal(tpl);
+}
+
+// ── 詳細設定モーダル
+let _cfgTpl = null;
+
+function openCfgModal(tpl){
+  _cfgTpl = tpl;
+  document.getElementById('cfg-title').textContent = tpl.name;
+  document.getElementById('cfg-genre-badge').textContent = tpl.genre;
+  renderCfgBody(tpl);
+  document.getElementById('tpl-detail-modal').style.display='flex';
+}
+
+function closeCfgModal(){
+  document.getElementById('tpl-detail-modal').style.display='none';
+}
+
+function renderCfgBody(tpl){
+  const schema = tpl.schema;
+  let html = '';
+
+  html += `<div class="cfg-preview-bar">📐 ${tpl.zones.length} 領域のテンプレート &nbsp;|&nbsp; ${tpl.desc}</div>`;
+
+  schema.sections.forEach(sec => {
+    html += `<div class="cfg-section">`;
+    html += `<div class="cfg-section-title">${sec.title}</div>`;
+
+    sec.fields.forEach(f => {
+      const val = f.default || '';
+      const emphChecked = f.emphasized ? 'checked' : '';
+
+      if(f.type === 'text'){
+        html += `<div class="cfg-field">
+          <label>${f.label}</label>
+          <input type="text" id="cfg-f-${f.key}" placeholder="${f.placeholder||''}" value="${val.replace(/"/g,'&quot;')}">
+          ${f.canEmphasize ? emphToggle(f.key, f.emphasized) : ''}
+        </div>`;
+      } else if(f.type === 'textarea'){
+        html += `<div class="cfg-field">
+          <label>${f.label}</label>
+          <textarea id="cfg-f-${f.key}" rows="${f.rows||2}" placeholder="${f.placeholder||''}">${val}</textarea>
+          ${f.canEmphasize ? emphToggle(f.key, f.emphasized) : ''}
+        </div>`;
+      } else if(f.type === 'row'){
+        html += `<div class="cfg-row">`;
+        f.cols.forEach(col => {
+          html += `<div class="cfg-field">
+            <label>${col.label}</label>
+            <input type="text" id="cfg-f-${col.key}" placeholder="${col.placeholder||''}" value="${(col.default||'').replace(/"/g,'&quot;')}">
+          </div>`;
+        });
+        html += `</div>`;
+      } else if(f.type === 'dynlist'){
+        html += `<div class="cfg-field">
+          <label>${f.label} <span style="color:#aaa;font-weight:400">（追加・削除・強調が可能）</span></label>
+          <div class="dyn-list" id="dynlist-${f.key}">`;
+        const items = f.defaults || [''];
+        items.forEach((item, idx) => {
+          html += dynItemHTML(f.key, idx, item, f.subfield, f.canEmphasize, item._emph||false);
+        });
+        html += `</div>
+          <button class="dyn-add-btn" onclick="addDynItem('${f.key}','${f.subfield||''}','${f.canEmphasize||false}')">＋ ${f.addLabel||'追加'}</button>
+        </div>`;
+      }
+    });
+    html += `</div>`;
+  });
+
+  document.getElementById('cfg-body').innerHTML = html;
+}
+
+function emphToggle(key, checked){
+  return `<div class="cfg-emph-row">
+    <label class="cfg-emph-toggle">
+      <input type="checkbox" id="cfg-emph-${key}" onchange="updateEmphLabel('${key}')" ${checked?'checked':''}>
+      <span class="cfg-emph-slider"></span>
+    </label>
+    <span class="cfg-emph-label${checked?' on':''}" id="cfg-emph-lbl-${key}">強調エリアにする</span>
+  </div>`;
+}
+
+function updateEmphLabel(key){
+  const cb = document.getElementById('cfg-emph-'+key);
+  const lbl = document.getElementById('cfg-emph-lbl-'+key);
+  if(cb.checked){ lbl.className='cfg-emph-label on'; lbl.textContent='★ 強調エリア'; }
+  else { lbl.className='cfg-emph-label'; lbl.textContent='強調エリアにする'; }
+}
+
+let _dynCounters = {};
+function dynItemHTML(key, idx, item, subfield, canEmph, isEmph){
+  const mainVal = typeof item === 'object' ? (item.heading||'') : item;
+  const subVal  = typeof item === 'object' ? (item.desc||'') : '';
+  return `<div class="dyn-item${isEmph?' emphasized-item':''}" id="dyn-${key}-${idx}">
+    <span class="dyn-item-num">${idx+1}</span>
+    <div class="dyn-item-fields">
+      <input type="text" placeholder="見出し・タイトル" value="${mainVal.replace(/"/g,'&quot;')}" data-dyn="${key}" data-idx="${idx}" data-role="heading">
+      ${subfield ? `<textarea rows="2" placeholder="${subfield}" data-dyn="${key}" data-idx="${idx}" data-role="desc">${subVal}</textarea>` : ''}
+    </div>
+    <div class="dyn-item-controls">
+      ${canEmph ? `<button class="dyn-emph-btn${isEmph?' on':''}" onclick="toggleDynEmph('${key}',${idx},this)" title="強調">★</button>` : ''}
+      <button class="dyn-del-btn" onclick="delDynItem('${key}',${idx})" title="削除">×</button>
+    </div>
+  </div>`;
+}
+
+function addDynItem(key, subfield, canEmph){
+  const list = document.getElementById('dynlist-'+key);
+  const idx = list.children.length;
+  const div = document.createElement('div');
+  div.innerHTML = dynItemHTML(key, idx, '', subfield==='false'?'':subfield, canEmph==='false'?false:canEmph, false);
+  list.appendChild(div.firstElementChild);
+  // renumber
+  renumberDynList(key);
+}
+
+function delDynItem(key, idx){
+  const item = document.getElementById(`dyn-${key}-${idx}`);
+  if(item) item.remove();
+  renumberDynList(key);
+}
+
+function renumberDynList(key){
+  const list = document.getElementById('dynlist-'+key);
+  if(!list) return;
+  Array.from(list.children).forEach((el,i)=>{
+    el.id = `dyn-${key}-${i}`;
+    const num = el.querySelector('.dyn-item-num');
+    if(num) num.textContent = i+1;
+    // update data-idx
+    el.querySelectorAll('[data-idx]').forEach(inp=>inp.dataset.idx=i);
+    // update onclick
+    const delBtn = el.querySelector('.dyn-del-btn');
+    if(delBtn) delBtn.setAttribute('onclick',`delDynItem('${key}',${i})`);
+    const emphBtn = el.querySelector('.dyn-emph-btn');
+    if(emphBtn) emphBtn.setAttribute('onclick',`toggleDynEmph('${key}',${i},this)`);
+  });
+}
+
+function toggleDynEmph(key, idx, btn){
+  btn.classList.toggle('on');
+  const item = document.getElementById(`dyn-${key}-${idx}`);
+  if(item) item.classList.toggle('emphasized-item');
+}
+
+function getDynListData(key){
+  const list = document.getElementById('dynlist-'+key);
+  if(!list) return [];
+  return Array.from(list.children).map(el => {
+    const headingEl = el.querySelector('[data-role="heading"]');
+    const descEl    = el.querySelector('[data-role="desc"]');
+    const emphBtn   = el.querySelector('.dyn-emph-btn');
+    return {
+      heading: headingEl ? headingEl.value.trim() : '',
+      desc:    descEl    ? descEl.value.trim()    : '',
+      emph:    emphBtn   ? emphBtn.classList.contains('on') : false
+    };
+  });
+}
+
+function getCfgValue(key){ const el=document.getElementById('cfg-f-'+key); return el?el.value.trim():''; }
+function getCfgEmph(key){ const el=document.getElementById('cfg-emph-'+key); return el?el.checked:false; }
+
+// ── 設定をゾーンに反映
+function applyCfgToCanvas(){
+  if(!_cfgTpl) return;
+  const ok = zones.length===0 || confirm('現在の領域をすべて削除してテンプレートを読み込みますか？');
+  if(!ok) return;
+
+  // ── ベースゾーンをコピー
+  const newZones = _cfgTpl.zones.map(z=>({...z}));
+  const schema = _cfgTpl.schema;
+
+  // ── dynlist ごとに「何件追加/削除したか」を記録（後続ゾーンのyシフト用）
+  // key: startZoneIndex, value: delta (追加した数 - 削除した数)
+  const yShiftMap = []; // [{afterIdx, dy}] 後続ゾーンのyシフト指示
+
+  schema.sections.forEach(sec => {
+    sec.fields.forEach(f => {
+      if(f.type === 'text' || f.type === 'textarea'){
+        const val = getCfgValue(f.key);
+        const emph = f.canEmphasize ? getCfgEmph(f.key) : null;
+        if(f.zoneIndex !== undefined && f.zoneIndex < newZones.length){
+          if(val) newZones[f.zoneIndex].heading = val;
+          if(emph !== null) newZones[f.zoneIndex].emphasized = emph;
+        }
+        if(f.zoneIndexDesc !== undefined && f.zoneIndexDesc < newZones.length && val){
+          newZones[f.zoneIndexDesc].description = val;
+        }
+      } else if(f.type === 'row'){
+        f.cols.forEach(col => {
+          const val = getCfgValue(col.key);
+          if(val && col.zoneIndex !== undefined && col.zoneIndex < newZones.length)
+            newZones[col.zoneIndex].heading = val;
+          if(val && col.zoneIndexDesc !== undefined && col.zoneIndexDesc < newZones.length)
+            newZones[col.zoneIndexDesc].description = val;
+        });
+      } else if(f.type === 'dynlist'){
+        const items = getDynListData(f.key);
+        if(!items.length) return;
+
+        const startIdx = f.startZoneIndex;
+        const tplCount = f.tplCount || 1;
+        const newCount = items.length;
+
+        // ── テンプレ内の対象ゾーン群のバウンディングボックスを取得
+        const tplGroup = newZones.slice(startIdx, startIdx + tplCount);
+        if(!tplGroup.length) return;
+
+        const bbox = {
+          x: Math.min(...tplGroup.map(z=>z.x)),
+          y: Math.min(...tplGroup.map(z=>z.y)),
+          x2: Math.max(...tplGroup.map(z=>z.x+z.w)),
+          y2: Math.max(...tplGroup.map(z=>z.y+z.h))
+        };
+        bbox.w = bbox.x2 - bbox.x;
+        bbox.h = bbox.y2 - bbox.y;
+
+        // ── テンプレのレイアウト方向を判断（横並び or 縦並び）
+        // y座標のばらつき vs x座標のばらつきで判定
+        const ySpread = Math.max(...tplGroup.map(z=>z.y)) - Math.min(...tplGroup.map(z=>z.y));
+        const xSpread = Math.max(...tplGroup.map(z=>z.x)) - Math.min(...tplGroup.map(z=>z.x));
+        const isHorizontal = xSpread > ySpread; // 横並びか縦並びか
+
+        // ── 1件あたりのゾーンサイズを計算
+        const refZone = tplGroup[0];
+        const GAP = 4;
+
+        let newGroupZones;
+        if(isHorizontal){
+          // 横並び: 行数を計算して折り返し
+          // テンプレの列数を基準に、newCountを収める行数を決める
+          const tplCols = tplGroup.length; // テンプレの横並び数
+          const itemW = refZone.w;
+          const itemH = refZone.h;
+          // 何列に並べるか: キャンバス幅に収まる最大列数
+          const maxCols = Math.max(1, Math.floor((bbox.w + GAP) / (itemW + GAP)));
+          const cols = Math.min(newCount, maxCols);
+          const rows = Math.ceil(newCount / cols);
+          // bboxの高さを行数に合わせて伸縮
+          const newBboxH = rows * itemH + (rows - 1) * GAP;
+
+          newGroupZones = items.map((item, i) => {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            // 均等割り: bbox内でcolsを等幅に分割
+            const cellW = Math.floor((bbox.w - (cols-1)*GAP) / cols);
+            const cellH = itemH;
+            return {
+              ...refZone,
+              x: bbox.x + col * (cellW + GAP),
+              y: bbox.y + row * (cellH + GAP),
+              w: cellW,
+              h: cellH,
+              name: item.heading || refZone.name,
+              heading: item.heading,
+              description: item.desc,
+              emphasized: item.emph,
+              collapsed: false,
+              showDetails: false,
+              _photoName: null, _photoData: null, _imgEl: null
+            };
+          });
+
+          // yシフト量 = 新しいbboxH - 元のbboxH
+          const dy = newBboxH - bbox.h;
+          if(dy !== 0) yShiftMap.push({afterY: bbox.y2, dy});
+
+        } else {
+          // 縦並び: 均等に縦分割
+          const itemW = refZone.w;
+          const newItemH = Math.max(20, Math.floor((bbox.h - (newCount-1)*GAP) / newCount));
+
+          newGroupZones = items.map((item, i) => ({
+            ...refZone,
+            x: bbox.x,
+            y: bbox.y + i * (newItemH + GAP),
+            w: itemW,
+            h: newItemH,
+            name: item.heading || refZone.name,
+            heading: item.heading,
+            description: item.desc,
+            emphasized: item.emph,
+            collapsed: false,
+            showDetails: false,
+            _photoName: null, _photoData: null, _imgEl: null
+          }));
+          // 縦並びは bbox.h に収まるよう均等割りなのでdyは0
+        }
+
+        // ── 元のtplGroupをnewGroupZonesで置換
+        newZones.splice(startIdx, tplCount, ...newGroupZones);
+      }
+    });
+  });
+
+  // ── yシフト: dynlist の増減で生じた空白/重なりを後続ゾーンに伝播
+  yShiftMap.forEach(({afterY, dy}) => {
+    newZones.forEach(z => {
+      if(z.y >= afterY - 1) z.y += dy;
+    });
+  });
+
+  zones = newZones;
+  setMode('move');
+  draw();
+  renderList();
+  closeCfgModal();
+  closeTplModal();
+}
+
+
+function deleteUserTpl(id){
+  const arr = loadUserTpls().filter(t=>t.id!==id);
+  saveUserTpls(arr);
+  renderTplTabs();
+  renderTplGrid();
+}
+
+function saveCurrentAsTpl(){
+  const name = document.getElementById('tpl-save-name').value.trim();
+  if(!name){ alert('テンプレート名を入力してください'); return; }
+  if(!zones.length){ alert('領域がありません'); return; }
+  const arr = loadUserTpls();
+  const id = 'user_' + Date.now();
+  arr.push({id, name, desc:'自分で作成したテンプレート', genre:'カスタム', zones: zones.map(z=>({...z}))});
+  saveUserTpls(arr);
+  document.getElementById('tpl-save-name').value='';
+  alert('✅ テンプレートを保存しました！');
+  renderTplTabs();
+  renderTplGrid();
+}
+
+// ── 全折りたたみ
+function collapseAll(){
+  zones.forEach(z=>z.collapsed=true);
+  renderList();
+}
+
+
+</script>
+</body>
+</html>
