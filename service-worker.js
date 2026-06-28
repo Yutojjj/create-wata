@@ -1,4 +1,4 @@
-const CACHE_NAME = "prompt-canvas-v3";
+const CACHE_NAME = "prompt-canvas-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
