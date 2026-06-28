@@ -3,36 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2563eb">
+<meta name="application-name" content="PromptCanvas">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PromptCanvas">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <title>PromptCanvas — 広告レイアウトビルダー</title>
 <style>
 /* ── リセット & 基盤 ── */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f1117;
-  --surface:#181c27;
-  --surface2:#1e2333;
-  --surface3:#252a3d;
-  --border:#2c3250;
-  --border2:#3a4060;
-  --accent:#5b7fff;
-  --accent2:#7c5bff;
-  --accent-glow:rgba(91,127,255,.25);
+  --bg:#eef3f8;
+  --surface:#ffffff;
+  --surface2:#f8fafc;
+  --surface3:#eef4fb;
+  --border:#d7e0ea;
+  --border2:#b8c6d8;
+  --accent:#2563eb;
+  --accent2:#0891b2;
+  --accent-glow:rgba(37,99,235,.16);
   --orange:#f59e42;
   --orange-glow:rgba(245,158,66,.2);
   --green:#34d399;
   --red:#f87171;
-  --text:#e8ecf4;
-  --text2:#9aa3bf;
-  --text3:#5c657d;
+  --text:#152033;
+  --text2:#526173;
+  --text3:#7c8a9a;
   --radius:10px;
   --radius-sm:6px;
-  --shadow:0 4px 24px rgba(0,0,0,.5);
+  --shadow:0 12px 34px rgba(31,49,75,.16);
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter','Hiragino Sans','Yu Gothic',system-ui,sans-serif;font-size:13px;line-height:1.5}
 
 /* ── トップバー ── */
 .topbar{height:52px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;position:sticky;top:0;z-index:100}
-.topbar-logo{font-size:15px;font-weight:800;letter-spacing:-.02em;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+.topbar-logo{font-size:15px;font-weight:800;letter-spacing:0;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
 .topbar-logo span{font-size:10px;-webkit-text-fill-color:var(--text3);font-weight:500;margin-left:6px;letter-spacing:.05em}
 .topbar-sep{flex:1}
 .topbar-fmt{display:flex;align-items:center;gap:8px}
@@ -53,17 +60,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter'
 
 /* ── 左: キャンバスエリア ── */
 .canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);min-width:0}
-.canvas-scroll{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:24px}
-.canvas-wrap{border:1px solid var(--border2);border-radius:var(--radius);background:#222;overflow:hidden;box-shadow:var(--shadow);position:relative}
+.canvas-scroll{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:28px;background:linear-gradient(180deg,#f8fbff,#edf3f9)}
+.canvas-wrap{border:1px solid #cbd5e1;border-radius:6px;background:#fff;overflow:hidden;box-shadow:0 16px 44px rgba(31,49,75,.18);position:relative}
 canvas{display:block;cursor:crosshair}
+.canvas-context-menu{position:fixed;z-index:2000;display:none;min-width:168px;padding:6px;background:#fff;border:1px solid var(--border2);border-radius:8px;box-shadow:0 16px 40px rgba(31,49,75,.22)}
+.canvas-context-menu button{width:100%;border:0;background:transparent;color:var(--text);font-size:12px;text-align:left;padding:8px 10px;border-radius:6px;cursor:pointer}
+.canvas-context-menu button:hover{background:rgba(37,99,235,.10);color:var(--accent)}
+.canvas-context-menu .danger{color:#fca5a5}
+.canvas-context-menu .danger:hover{background:rgba(248,113,113,.16);color:#fecaca}
+.canvas-context-menu:not(.has-zone) .zone-only{display:none}
+.zone-popover{position:fixed;z-index:2100;display:none;width:min(680px,calc(100vw - 28px));max-height:calc(100vh - 28px);overflow:auto;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:0 22px 60px rgba(31,49,75,.22)}
+.zone-popover-header{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f8fafc;border-bottom:1px solid var(--border)}
+.zone-popover-header .zone-name-input{font-size:14px}
+.zone-popover-body{padding:14px;display:flex;flex-direction:column;gap:12px}
+.zone-popover-actions{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc}
+.saved-toolbar{display:flex;gap:8px;margin-bottom:12px}
+.saved-toolbar input{flex:1;font-size:12px;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;background:#fff;color:var(--text)}
+.saved-list{display:flex;flex-direction:column;gap:8px}
+.saved-card{border:1px solid var(--border);border-radius:8px;background:#fff;padding:10px;box-shadow:0 4px 14px rgba(31,49,75,.06)}
+.saved-card-title{font-weight:700;font-size:13px;color:var(--text);margin-bottom:3px}
+.saved-card-meta{font-size:10px;color:var(--text3);margin-bottom:8px}
+.saved-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.saved-card-actions button{font-size:11px;padding:5px 9px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);color:var(--text2);cursor:pointer}
+.saved-card-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.saved-card-actions .danger:hover{border-color:var(--red);color:var(--red)}
 .canvas-hint{padding:6px 24px 10px;font-size:11px;color:var(--text3);display:flex;gap:16px}
 .canvas-hint span::before{content:'•';margin-right:5px;color:var(--accent)}
 
 /* ── 右: サイドパネル ── */
-.side{width:360px;min-width:320px;display:flex;flex-direction:column;background:var(--surface);border-left:1px solid var(--border);overflow:hidden}
+.side{width:390px;min-width:330px;display:flex;flex-direction:column;background:var(--surface);border-left:1px solid var(--border);overflow:hidden}
 .side-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
 .side-tab{flex:1;padding:10px;font-size:12px;font-weight:600;text-align:center;border:none;background:transparent;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
-.side-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.side-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:#f4f8ff}
 .side-tab:hover:not(.active){color:var(--text)}
 .side-content{flex:1;overflow-y:auto;padding:12px}
 .side-content::-webkit-scrollbar{width:4px}
@@ -73,11 +101,12 @@ canvas{display:block;cursor:crosshair}
 .sec-label{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;padding:8px 0 6px;display:flex;justify-content:space-between;align-items:center}
 
 /* ── 領域カード ── */
-.zone-card{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px;overflow:hidden;background:var(--surface2);transition:border-color .2s}
+.zone-card{border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;background:var(--surface);transition:border-color .2s,box-shadow .2s}
+.zone-card:hover{box-shadow:0 6px 18px rgba(31,49,75,.08)}
 .zone-card.emphasized{border-color:var(--orange);box-shadow:0 0 0 2px var(--orange-glow)}
 .zone-card.collapsed .zone-toggle{transform:rotate(-90deg)}
 .zone-card.collapsed .zone-body{display:none}
-.zone-header{display:flex;align-items:center;gap:6px;padding:6px 8px;background:var(--surface3);border-bottom:1px solid var(--border)}
+.zone-header{display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border)}
 .zone-toggle{background:none;border:none;color:var(--text3);font-size:9px;cursor:pointer;padding:3px;transition:transform .2s;line-height:1}
 .zone-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
 .zone-num{font-size:10px;color:var(--text3);min-width:14px}
@@ -91,7 +120,8 @@ canvas{display:block;cursor:crosshair}
 .zone-del-btn:hover{color:var(--red);border-color:var(--red)}
 .zone-body{padding:8px 10px;display:flex;flex-direction:column;gap:7px}
 .zone-field label{display:block;font-size:10px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:.03em}
-.zone-field input,.zone-field textarea{width:100%;font-size:12px;padding:6px 8px;border-radius:var(--radius-sm);border:1px solid var(--border2);background:var(--surface);color:var(--text);resize:vertical;transition:border-color .15s}
+.zone-field input,.zone-field textarea{width:100%;font-size:12px;padding:8px 9px;border-radius:6px;border:1px solid var(--border2);background:#fff;color:var(--text);resize:vertical;transition:border-color .15s,box-shadow .15s}
+.zone-field input:focus,.zone-field textarea:focus{box-shadow:0 0 0 3px var(--accent-glow)}
 .zone-field input:focus,.zone-field textarea:focus{outline:none;border-color:var(--accent)}
 .details-toggle-wrap{text-align:center}
 .btn-toggle-details{background:none;border:none;color:var(--accent);font-size:10px;cursor:pointer;padding:3px 8px;border-radius:4px;font-weight:600}
@@ -257,6 +287,32 @@ canvas{display:block;cursor:crosshair}
   <div class="canvas-area">
     <div class="canvas-scroll">
       <div class="canvas-wrap"><canvas id="cv"></canvas></div>
+      <div class="canvas-context-menu" id="canvas-context-menu">
+        <button onclick="ctxDrawMode()">描画に切替</button>
+        <button class="zone-only" onclick="ctxEditZone()">領域編集</button>
+        <button class="zone-only" onclick="ctxDuplicateZone()">複製</button>
+        <button class="zone-only" onclick="ctxBringFront()">前面へ</button>
+        <button class="zone-only" onclick="ctxSendBack()">背面へ</button>
+        <button class="zone-only" onclick="ctxToggleEmph()">強調切替</button>
+        <button class="zone-only danger" onclick="ctxDeleteZone()">削除</button>
+      </div>
+      <div class="zone-popover" id="zone-popover">
+        <div class="zone-popover-header">
+          <button class="zone-toggle" onclick="closeZonePopover()">×</button>
+          <div class="zone-dot" id="pop-zone-dot"></div>
+          <span class="zone-num" id="pop-zone-num"></span>
+          <input class="zone-name-input" id="pop-zone-name" placeholder="領域名" oninput="updatePopoverZone('name',this.value)">
+          <button class="zone-emph-btn" id="pop-zone-emph" onclick="togglePopoverEmph()">★</button>
+        </div>
+        <div class="zone-popover-body">
+          <div class="zone-field"><label>見出し・テキスト</label><input type="text" id="pop-zone-heading" placeholder="例: 春のキャンペーン開催中！" oninput="updatePopoverZone('heading',this.value)"></div>
+          <div class="zone-field"><label>説明・詳細</label><textarea rows="3" id="pop-zone-description" placeholder="例: 商品特徴、価格など" oninput="updatePopoverZone('description',this.value)"></textarea></div>
+          <div class="zone-field"><label>使用写真</label><div class="photo-upload-wrap" id="pop-photo-wrap"></div></div>
+          <div class="zone-field"><label>画像プロンプト・補足</label><textarea rows="2" id="pop-zone-image-prompt" placeholder="例: 笑顔の子供たち、明るい教室" oninput="updatePopoverZone('image_prompt',this.value)"></textarea></div>
+          <div class="zone-field"><label>補足・コンテキスト</label><textarea rows="2" id="pop-zone-context" placeholder="例: 左上位置のメインビジュアル" oninput="updatePopoverZone('context',this.value)"></textarea></div>
+        </div>
+        <div class="zone-popover-actions"><button class="topbar-btn" onclick="ctxMoveZone()">移動・サイズ変更</button><button class="topbar-btn danger" onclick="ctxDeleteZone()">削除</button><button class="topbar-btn primary" onclick="closeZonePopover()">閉じる</button></div>
+      </div>
     </div>
     <div class="canvas-hint">
       <span>描画モード: ドラッグで領域を作成</span>
@@ -267,9 +323,10 @@ canvas{display:block;cursor:crosshair}
   <!-- ── サイドパネル ── -->
   <div class="side">
     <div class="side-tabs">
-      <button class="side-tab active" onclick="switchTab('zones',this)">領域リスト</button>
+      <button class="side-tab active" onclick="switchTab('zones',this)">領域</button>
       <button class="side-tab" onclick="switchTab('settings',this)">設定</button>
       <button class="side-tab" onclick="switchTab('output',this)">出力</button>
+      <button class="side-tab" onclick="switchTab('saved',this);renderSavedList()">保存</button>
     </div>
 
     <!-- 領域リストタブ -->
@@ -356,10 +413,18 @@ canvas{display:block;cursor:crosshair}
         <div class="output-box" id="output"></div>
         <div class="output-actions">
           <button class="btn-copy-prim" onclick="copyPrompt()">📋 コピー</button>
+          <button class="btn-save-work" onclick="saveCurrentWork()">💾 保存</button>
           <button class="btn-zip" id="btn-zip" onclick="downloadZip()">📦 写真をZIPでダウンロード</button>
         </div>
         <div id="zip-status"></div>
       </div>
+    </div>
+
+    <div class="side-content" id="tab-saved" style="display:none">
+      <div class="sec-label">保存履歴</div>
+      <div class="saved-toolbar"><input type="text" id="save-name" placeholder="保存名 例: 春キャンペーンA案"><button class="topbar-btn primary" onclick="saveCurrentWork()">保存</button></div>
+      <div class="empty-hint">領域・設定・生成済みプロンプトをこのブラウザに保存します</div>
+      <div class="saved-list" id="saved-list"></div>
     </div>
   </div>
 </div>
@@ -402,7 +467,7 @@ canvas{display:block;cursor:crosshair}
 
 // ── タブ切替
 function switchTab(id,btn){
-  ['zones','settings','output'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===id?'':'none'});
+  ['zones','settings','output','saved'].forEach(t=>{document.getElementById('tab-'+t).style.display=t===id?'':'none'});
   document.querySelectorAll('.side-tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
 }
@@ -420,11 +485,31 @@ const ctx=cv.getContext('2d');
 const COLORS=['#5b7fff','#34d399','#f59e42','#f87171','#a78bfa','#38bdf8','#fb923c','#4ade80','#e879f9','#facc15'];
 const DEF_NAMES=['メイン画像','見出し','サブコピー','商品','人物','背景','ロゴ','ボタン','装飾','その他'];
 const FMT={A4v:{w:400,h:565,prompt:'portrait A4 vertical flyer layout'},A4h:{w:565,h:400,prompt:'landscape A4 horizontal layout'},B4v:{w:400,h:573,prompt:'portrait B4 vertical poster/flyer layout'},B4h:{w:573,h:400,prompt:'landscape B4 horizontal poster/flyer layout'},poster:{w:400,h:565,prompt:'large vertical poster layout'},sq:{w:460,h:460,prompt:'square 1:1 social media post'},wide:{w:580,h:326,prompt:'wide 16:9 horizontal banner'},story:{w:320,h:568,prompt:'vertical 9:16 stories format'},x_header:{w:600,h:200,prompt:'ultra-wide 3:1 header banner layout'},yt_thumb:{w:560,h:315,prompt:'16:9 YouTube thumbnail layout'},card:{w:550,h:330,prompt:'horizontal business card layout'}};
-const STYLE_MAP={photorealistic:'photorealistic hyperrealistic commercial photography, photo-quality image',minimalist:'minimalist design, generous white space, clean and simple composition',flat:'flat design illustration, bold colors, no shadows or gradients, 2D graphic style',anime:'anime style illustration, Japanese anime aesthetic, hand-drawn look',vintage:'vintage retro poster style, aged texture, nostalgic warm feel',modern:'modern contemporary design, bold geometric shapes, sleek and stylish',watercolor:'soft watercolor illustration, artistic handcrafted brushstroke style'};
-const LIGHT_MAP={natural:'natural daylight, soft shadows, bright and airy atmosphere',studio:'professional studio lighting, clean white background, sharp crisp detail',golden:'golden hour lighting, warm orange glow, long soft shadows',soft:'soft diffused light, gentle shadows, warm inviting atmosphere',dramatic:'dramatic chiaroscuro lighting, deep shadows, strong highlights, high contrast'};
-const COLOR_MAP={warm:'warm color palette - oranges, reds and yellows, energetic and inviting',cool:'cool color palette - blues and teals, calm and trustworthy',pastel:'soft pastel colors, light dreamy palette, gentle and cute',mono:'black and white monochrome, elegant and sophisticated',vivid:'vibrant vivid colors, highly saturated, bold and eye-catching',contrast:'high contrast color scheme, bold and striking visual impact'};
-const COMP_MAP={eye_level:'eye-level shot, standard perspective',close_up:'close-up shot, detailed focus on the main subject',wide_angle:'wide-angle shot, expansive view',high_angle:'high-angle shot, birds-eye view',low_angle:'low-angle shot, heroic perspective'};
-const CAMERA_MAP={dslr:'shot on DSLR, beautiful bokeh, shallow depth of field',polaroid:'polaroid style, instant camera aesthetic, vintage border',film:'35mm film photography, natural film grain',drone:'drone photography, aerial view'};
+const STYLE_MAP={photorealistic:'photorealistic hyperrealistic commercial photography, photo-quality image',minimalist:'minimalist design, generous white space, clean and simple composition',flat:'flat design illustration, bold colors, no shadows or gradients, 2D graphic style',anime:'anime style illustration, Japanese anime aesthetic, hand-drawn look',vintage:'vintage retro poster style, aged texture, nostalgic warm feel',modern:'modern contemporary design, bold geometric shapes, sleek and stylish',watercolor:'soft watercolor illustration, artistic handcrafted brushstroke style',luxury:'luxury premium advertising design, refined typography, elegant materials, upscale finish',pop:'bright pop advertising style, energetic shapes, playful commercial design',editorial:'editorial magazine layout, polished art direction, strong typography hierarchy',cinematic:'cinematic key visual, dramatic commercial composition, movie-poster quality',corporate:'clean corporate brochure style, trustworthy, professional, organized information design',kawaii:'kawaii cute Japanese design, soft friendly shapes, cheerful and approachable',bold_typography:'bold typography-led poster design, large impactful lettering, strong graphic layout',collage:'modern collage design, layered cutout visuals, dynamic mixed-media composition',line_art:'clean line-art illustration, simple icons, airy hand-drawn accents',isometric:'isometric illustration style, tidy 3D-like vector composition',premium_photo:'premium product photography advertisement, crisp detail, catalog-quality finish'};
+const LIGHT_MAP={natural:'natural daylight, soft shadows, bright and airy atmosphere',studio:'professional studio lighting, clean white background, sharp crisp detail',golden:'golden hour lighting, warm orange glow, long soft shadows',soft:'soft diffused light, gentle shadows, warm inviting atmosphere',dramatic:'dramatic chiaroscuro lighting, deep shadows, strong highlights, high contrast',backlit:'beautiful backlight, glowing rim light, luminous edges',neon:'colorful neon lighting, night commercial atmosphere, vivid glow',overcast:'soft overcast daylight, even gentle shadows, natural realism',spotlight:'focused spotlight lighting, attention on the hero subject',high_key:'high-key bright lighting, clean white airy commercial look',low_key:'low-key moody lighting, deep blacks and selective highlights'};
+const COLOR_MAP={warm:'warm color palette - oranges, reds and yellows, energetic and inviting',cool:'cool color palette - blues and teals, calm and trustworthy',pastel:'soft pastel colors, light dreamy palette, gentle and cute',mono:'black and white monochrome, elegant and sophisticated',vivid:'vibrant vivid colors, highly saturated, bold and eye-catching',contrast:'high contrast color scheme, bold and striking visual impact',earth:'earth-tone palette, greens, clay, natural beige accents, organic and calm',japanese:'Japanese seasonal color harmony, refined traditional accents, balanced and tasteful',luxury_gold:'black, white, and gold premium palette, elegant and expensive feel',fresh:'fresh clean palette, white space with green and light blue accents',cute:'cute candy-color palette, cheerful pink, yellow, mint, and sky blue accents',tech:'modern tech palette, electric cyan, blue, graphite, and crisp white',natural_food:'natural food palette, appetizing reds, greens, cream, and warm highlights'};
+const COMP_MAP={eye_level:'eye-level shot, standard perspective',close_up:'close-up shot, detailed focus on the main subject',wide_angle:'wide-angle shot, expansive view',high_angle:'high-angle shot, birds-eye view',low_angle:'low-angle shot, heroic perspective',symmetry:'symmetrical centered composition, balanced and orderly',diagonal:'dynamic diagonal composition, energetic movement across the layout',rule_thirds:'rule-of-thirds composition, natural focal placement',top_down:'top-down flat lay composition, clear arrangement of objects',split_layout:'split layout composition, distinct information blocks and image blocks',hero_center:'large centered hero subject with supporting text around it',grid_layout:'structured grid layout, many small information modules aligned cleanly'};
+const CAMERA_MAP={dslr:'shot on DSLR, beautiful bokeh, shallow depth of field',polaroid:'polaroid style, instant camera aesthetic, vintage border',film:'35mm film photography, natural film grain',drone:'drone photography, aerial view',smartphone:'modern smartphone photography, natural everyday realism',macro:'macro lens photography, crisp close detail and shallow depth',wide_lens:'wide lens commercial photography, spacious perspective',portrait_lens:'85mm portrait lens look, flattering compression and soft background',product_lens:'product photography lens, distortion-free, precise detail',tilt_shift:'tilt-shift lens look, miniature-like selective focus'};
+const EXTRA_SELECT_OPTIONS={
+  style:[['luxury','高級感','高級感 - 上質・洗練・プレミアム'],['pop','ポップ','ポップ - 明るい・楽しい・目立つ'],['editorial','雑誌風','雑誌風 - おしゃれな誌面レイアウト'],['cinematic','映画風','映画風 - ドラマチックなキービジュアル'],['corporate','企業風','企業風 - 信頼感・整理された案内'],['kawaii','かわいい','かわいい - 親しみやすく柔らかい'],['bold_typography','文字主役','文字主役 - 大きな文字で強く見せる'],['collage','コラージュ','コラージュ - 切り抜きや重ねを活かす'],['line_art','線画','線画 - シンプルな手描き線'],['isometric','アイソメ','アイソメ - 立体風イラスト'],['premium_photo','商品写真風','商品写真風 - カタログ品質の写真広告']],
+  lighting:[['backlit','逆光','逆光 - ふちが光る印象的な光'],['neon','ネオン','ネオン - 夜・発光・派手'],['overcast','曇天自然光','曇天自然光 - 影が柔らかく自然'],['spotlight','スポット','スポット - 主役に光を集中'],['high_key','明るめ','明るめ - 白く清潔な広告感'],['low_key','暗め','暗め - 大人っぽく重厚']],
+  color:[['earth','アース','アース - 自然で落ち着いた色'],['japanese','和色','和色 - 季節感のある上品な配色'],['luxury_gold','黒金','黒金 - 高級感のある配色'],['fresh','清潔感','清潔感 - 白・緑・水色中心'],['cute','キャンディ','キャンディ - かわいい多色'],['tech','テック','テック - 青・シアン・黒系'],['natural_food','食品向け','食品向け - おいしそうな自然配色']],
+  composition:[['symmetry','左右対称','左右対称 - 整った安定感'],['diagonal','斜め構図','斜め構図 - 動きと勢い'],['rule_thirds','三分割','三分割 - 自然な主役配置'],['top_down','真上','真上 - 商品や料理を並べる'],['split_layout','分割','分割 - 写真と情報を分ける'],['hero_center','中央主役','中央主役 - 主役を大きく配置'],['grid_layout','グリッド','グリッド - 多情報を整列']],
+  camera:[['smartphone','スマホ','スマホ - 自然な日常写真'],['macro','マクロ','マクロ - 近接で細部を見せる'],['wide_lens','広角レンズ','広角レンズ - 空間を広く見せる'],['portrait_lens','人物レンズ','人物レンズ - 人物をきれいに見せる'],['product_lens','商品レンズ','商品レンズ - 歪み少なく精密'],['tilt_shift','チルト','チルト - ミニチュア風の選択フォーカス']]
+};
+function addDynamicOptions(){
+  Object.entries(EXTRA_SELECT_OPTIONS).forEach(([id,items])=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    items.forEach(([value,shortText,fullText])=>{
+      if(sel.querySelector(`option[value="${value}"]`))return;
+      const opt=document.createElement('option');
+      opt.value=value;opt.dataset.short=shortText;opt.dataset.full=fullText;opt.textContent=shortText;
+      sel.appendChild(opt);
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded',addDynamicOptions);
 const POS_LABEL=z=>{const cx=(z.x+z.w/2)/cv.width,cy=(z.y+z.h/2)/cv.height;const h=cx<.35?'left side':cx>.65?'right side':'center';const v=cy<.33?'top':cy>.66?'bottom':'middle';if(v==='middle'&&h==='center')return'center';if(v==='middle')return h;return v+' '+h};
 const SIZE_LABEL=z=>{const wp=Math.round(z.w/cv.width*100),hp=Math.round(z.h/cv.height*100);const ws=wp>60?'large':wp>30?'medium':'small';const hs=hp>60?'tall':hp>30?'medium-height':'short';return`${ws} ${hs} block (occupying roughly ${wp}% of width and ${hp}% of height)`};
 let zones=[],mode='draw';
@@ -447,39 +532,137 @@ function getHandle(z,p){
   return null;
 }
 function rCursor(h){return{nw:'nw-resize',ne:'ne-resize',sw:'sw-resize',se:'se-resize',n:'n-resize',s:'s-resize',w:'w-resize',e:'e-resize'}[h]||'default'}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function truncateText(text,max){text=String(text||'').replace(/\s+/g,' ').trim();return text.length>max?text.slice(0,Math.max(0,max-1))+'…':text}
+function drawWrappedText(text,x,y,maxW,lineH,maxLines){
+  const chars=String(text||'').replace(/\n/g,' ').split('');
+  let line='',lines=[];
+  chars.forEach(ch=>{const test=line+ch;if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=ch}else line=test});
+  if(line)lines.push(line);
+  if(lines.length>maxLines){lines=lines.slice(0,maxLines);lines[lines.length-1]=truncateText(lines[lines.length-1],Math.max(1,Math.floor(maxW/7)))}
+  lines.forEach((ln,i)=>ctx.fillText(ln,x,y+i*lineH));
+  return lines.length*lineH;
+}
+function fitZoneToCanvas(z,w=cv.width,h=cv.height){
+  const out={...z};
+  out.w=Math.max(18,Math.min(w,Number(out.w)||18));
+  out.h=Math.max(18,Math.min(h,Number(out.h)||18));
+  out.x=clamp(Number(out.x)||0,0,Math.max(0,w-out.w));
+  out.y=clamp(Number(out.y)||0,0,Math.max(0,h-out.h));
+  if(out.x+out.w>w)out.w=Math.max(18,w-out.x);
+  if(out.y+out.h>h)out.h=Math.max(18,h-out.y);
+  return out;
+}
+function normalizeZonesToCanvas(list,w=cv.width,h=cv.height){
+  const clean=(list||[]).map(z=>({...z,x:Number(z.x)||0,y:Number(z.y)||0,w:Math.max(18,Number(z.w)||18),h:Math.max(18,Number(z.h)||18)}));
+  if(!clean.length)return [];
+  const minX=Math.min(...clean.map(z=>z.x)),minY=Math.min(...clean.map(z=>z.y));
+  const maxX=Math.max(...clean.map(z=>z.x+z.w)),maxY=Math.max(...clean.map(z=>z.y+z.h));
+  const bw=Math.max(1,maxX-minX),bh=Math.max(1,maxY-minY);
+  const scale=Math.min(1,w/bw,h/bh);
+  return clean.map(z=>fitZoneToCanvas({...z,x:(z.x-minX)*scale,y:(z.y-minY)*scale,w:z.w*scale,h:z.h*scale},w,h));
+}
 function draw(){
+  zones=zones.map(z=>fitZoneToCanvas(z));
   ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.fillStyle='#1a1e2d';ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.setLineDash([]);ctx.lineWidth=0.5;
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle='rgba(148,163,184,0.18)';ctx.setLineDash([]);ctx.lineWidth=0.5;
   for(let x=0;x<=cv.width;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,cv.height);ctx.stroke()}
   for(let y=0;y<=cv.height;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke()}
+  ctx.strokeStyle='rgba(15,23,42,0.18)';ctx.lineWidth=1;ctx.strokeRect(.5,.5,cv.width-1,cv.height-1);
   zones.forEach((z,i)=>{
     const c=COLORS[i%COLORS.length];
-    if(z._imgEl){ctx.save();ctx.globalAlpha=0.45;ctx.drawImage(z._imgEl,z.x,z.y,z.w,z.h);ctx.restore()}
-    ctx.fillStyle=c+'22';ctx.fillRect(z.x,z.y,z.w,z.h);
-    if(z.emphasized){ctx.strokeStyle='#f59e42';ctx.lineWidth=2;ctx.setLineDash([])}
-    else{ctx.strokeStyle=c+'bb';ctx.lineWidth=1.5;ctx.setLineDash([])}
-    ctx.strokeRect(z.x+1,z.y+1,z.w-2,z.h-2);
-    if(z.emphasized){ctx.fillStyle='#f59e42';ctx.fillRect(z.x+z.w-20,z.y,20,14);ctx.fillStyle='#fff';ctx.font='bold 9px sans-serif';ctx.fillText('★',z.x+z.w-14,z.y+10)}
-    ctx.fillStyle=c+'cc';ctx.fillRect(z.x,z.y,Math.min(z.w,155),17);
-    ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';
+    if(z._imgEl){ctx.save();ctx.globalAlpha=0.32;ctx.drawImage(z._imgEl,z.x,z.y,z.w,z.h);ctx.restore()}
+    ctx.fillStyle=z.emphasized?'rgba(255,247,237,.88)':c+'18';ctx.fillRect(z.x,z.y,z.w,z.h);
+    ctx.strokeStyle=z.emphasized?'#f59e42':c;ctx.lineWidth=z.emphasized?2.2:1.4;ctx.setLineDash([]);ctx.strokeRect(z.x+1,z.y+1,z.w-2,z.h-2);
+    ctx.save();ctx.beginPath();ctx.rect(z.x+3,z.y+3,Math.max(1,z.w-6),Math.max(1,z.h-6));ctx.clip();
+    ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(z.x+4,z.y+4,Math.max(18,Math.min(z.w-8,165)),16);
+    ctx.fillStyle=c;ctx.fillRect(z.x+4,z.y+4,3,16);
+    ctx.fillStyle='#0f172a';ctx.font='bold 10px sans-serif';
     const lbl=(i+1)+'. '+(z.name||DEF_NAMES[i]||'エリア'+(i+1));
-    ctx.fillText(lbl.length>19?lbl.slice(0,18)+'…':lbl,z.x+4,z.y+12);
-    if(z._photoName){ctx.fillStyle='rgba(52,211,153,0.9)';ctx.font='9px sans-serif';ctx.fillText('📷 '+z._photoName.slice(0,20),z.x+4,z.y+28)}
-    else if(z.heading&&z.heading.trim()){ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font='9px sans-serif';const ht=z.heading.length>22?z.heading.slice(0,21)+'…':z.heading;ctx.fillText(ht,z.x+4,z.y+28)}
+    ctx.fillText(truncateText(lbl,Math.max(4,Math.floor((z.w-18)/6))),z.x+10,z.y+16);
+    let ty=z.y+32;
+    if(z.heading&&String(z.heading).trim()){
+      ctx.fillStyle='#111827';ctx.font=(z.emphasized?'bold ':'600 ')+Math.max(9,Math.min(15,Math.floor(z.h/5)))+'px sans-serif';
+      ty+=drawWrappedText(String(z.heading),z.x+7,ty,Math.max(12,z.w-14),Math.max(11,Math.min(17,Math.floor(z.h/4))),Math.max(1,Math.floor((z.h-30)/15)));
+    }
+    if(z.description&&String(z.description).trim()&&z.h>44){
+      ctx.fillStyle='#475569';ctx.font=Math.max(8,Math.min(11,Math.floor(z.h/7)))+'px sans-serif';
+      drawWrappedText(String(z.description),z.x+7,ty+2,Math.max(12,z.w-14),12,Math.max(1,Math.floor((z.y+z.h-ty-6)/12)));
+    }
+    if(z._photoName){ctx.fillStyle='#059669';ctx.font='9px sans-serif';ctx.fillText('PHOTO '+truncateText(z._photoName,18),z.x+7,Math.min(z.y+z.h-6,z.y+30))}
+    ctx.restore();
     if(mode==='move'){
       [{x:z.x,y:z.y},{x:z.x+z.w/2,y:z.y},{x:z.x+z.w,y:z.y},{x:z.x,y:z.y+z.h/2},{x:z.x+z.w,y:z.y+z.h/2},{x:z.x,y:z.y+z.h},{x:z.x+z.w/2,y:z.y+z.h},{x:z.x+z.w,y:z.y+z.h}].forEach(pt=>{
-        ctx.fillStyle='rgba(255,255,255,0.9)';ctx.fillRect(pt.x-4,pt.y-4,8,8);
-        ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.strokeRect(pt.x-4,pt.y-4,8,8);
+        ctx.fillStyle='rgba(255,255,255,0.95)';ctx.fillRect(pt.x-4,pt.y-4,8,8);ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.strokeRect(pt.x-4,pt.y-4,8,8);
       });
     }
   });
-  if(currentRect){ctx.fillStyle='rgba(91,127,255,0.08)';ctx.fillRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.strokeStyle='#5b7fff';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.strokeRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.setLineDash([])}
+  if(currentRect){ctx.fillStyle='rgba(37,99,235,0.08)';ctx.fillRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.strokeStyle='#2563eb';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.strokeRect(currentRect.x,currentRect.y,currentRect.w,currentRect.h);ctx.setLineDash([])}
   document.getElementById('zone-count').textContent=zones.length;
 }
 function getPos(e){const r=cv.getBoundingClientRect();const sx=cv.width/r.width,sy=cv.height/r.height;const cx=e.touches?e.touches[0].clientX:e.clientX;const cy2=e.touches?e.touches[0].clientY:e.clientY;return{x:(cx-r.left)*sx,y:(cy2-r.top)*sy}}
 function hitZone(p){for(let i=zones.length-1;i>=0;i--){const z=zones[i];if(p.x>=z.x&&p.x<=z.x+z.w&&p.y>=z.y&&p.y<=z.y+z.h)return i}return -1}
-cv.addEventListener('mousedown',e=>{const p=getPos(e);if(mode==='move'){for(let i=zones.length-1;i>=0;i--){const h=getHandle(zones[i],p);if(h){resizeIdx=i;resizeHandle=h;resizeOrigZ={...zones[i]};startX=p.x;startY=p.y;return}}const idx=hitZone(p);if(idx>=0){dragIdx=idx;dragOffX=p.x-zones[idx].x;dragOffY=p.y-zones[idx].y;cv.style.cursor='grabbing';return}return}drawing=true;startX=p.x;startY=p.y;currentRect=null});
+let ctxZoneIndex=-1,popoverZoneIndex=-1,lastCtxX=0,lastCtxY=0;
+const canvasMenu=document.getElementById('canvas-context-menu');
+const zonePopover=document.getElementById('zone-popover');
+function hideCanvasMenu(){canvasMenu.style.display='none'}
+function showCanvasMenu(e,idx){
+  ctxZoneIndex=idx;lastCtxX=e.clientX;lastCtxY=e.clientY;
+  canvasMenu.classList.toggle('has-zone',idx>=0);
+  canvasMenu.style.display='block';
+  const pad=8,mw=canvasMenu.offsetWidth||168,mh=canvasMenu.offsetHeight||220;
+  canvasMenu.style.left=Math.min(e.clientX,window.innerWidth-mw-pad)+'px';
+  canvasMenu.style.top=Math.min(e.clientY,window.innerHeight-mh-pad)+'px';
+}
+cv.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const idx=hitZone(getPos(e));
+  showCanvasMenu(e,idx);
+});
+document.addEventListener('click',e=>{if(!canvasMenu.contains(e.target))hideCanvasMenu()});
+window.addEventListener('resize',hideCanvasMenu);
+function ctxDrawMode(){setMode('draw');hideCanvasMenu();closeZonePopover()}
+function ctxMoveZone(){if(ctxZoneIndex<0&&popoverZoneIndex<0)return;setMode('move');hideCanvasMenu();closeZonePopover()}
+function ctxEditZone(){if(ctxZoneIndex<0)return;openZonePopover(ctxZoneIndex,lastCtxX,lastCtxY);hideCanvasMenu()}
+function ctxDuplicateZone(){if(ctxZoneIndex<0)return;const z={...zones[ctxZoneIndex],x:Math.min(cv.width-zones[ctxZoneIndex].w,zones[ctxZoneIndex].x+12),y:Math.min(cv.height-zones[ctxZoneIndex].h,zones[ctxZoneIndex].y+12),name:(zones[ctxZoneIndex].name||DEF_NAMES[ctxZoneIndex]||'Zone')+' copy',_photoName:null,_photoData:null,_imgEl:null};zones.splice(ctxZoneIndex+1,0,z);draw();renderList();hideCanvasMenu()}
+function ctxBringFront(){if(ctxZoneIndex<0)return;const[z]=zones.splice(ctxZoneIndex,1);zones.push(z);draw();renderList();hideCanvasMenu()}
+function ctxSendBack(){if(ctxZoneIndex<0)return;const[z]=zones.splice(ctxZoneIndex,1);zones.unshift(z);draw();renderList();hideCanvasMenu()}
+function ctxToggleEmph(){if(ctxZoneIndex<0)return;zones[ctxZoneIndex].emphasized=!zones[ctxZoneIndex].emphasized;draw();renderList();if(popoverZoneIndex===ctxZoneIndex)openZonePopover(ctxZoneIndex,lastCtxX,lastCtxY);hideCanvasMenu()}
+function ctxDeleteZone(){const i=ctxZoneIndex>=0?ctxZoneIndex:popoverZoneIndex;if(i<0)return;if(confirm('この領域を削除しますか？')){delZone(i);closeZonePopover()}hideCanvasMenu()}
+
+function closeZonePopover(){zonePopover.style.display='none';popoverZoneIndex=-1}
+function openZonePopover(i,x=window.innerWidth/2,y=120){
+  if(i<0||!zones[i])return;
+  popoverZoneIndex=i;ctxZoneIndex=i;
+  const z=zones[i],c=COLORS[i%COLORS.length];
+  document.getElementById('pop-zone-dot').style.background=c;
+  document.getElementById('pop-zone-num').textContent=i+1;
+  document.getElementById('pop-zone-name').value=z.name||'';
+  document.getElementById('pop-zone-heading').value=z.heading||'';
+  document.getElementById('pop-zone-description').value=z.description||'';
+  document.getElementById('pop-zone-image-prompt').value=z.image_prompt||'';
+  document.getElementById('pop-zone-context').value=z.context||'';
+  document.getElementById('pop-zone-emph').classList.toggle('on',!!z.emphasized);
+  renderPopoverPhoto();
+  zonePopover.style.display='block';
+  const pad=12,w=zonePopover.offsetWidth||680,h=zonePopover.offsetHeight||520;
+  zonePopover.style.left=Math.max(pad,Math.min(x,window.innerWidth-w-pad))+'px';
+  zonePopover.style.top=Math.max(pad,Math.min(y,window.innerHeight-h-pad))+'px';
+}
+function updatePopoverZone(key,value){if(popoverZoneIndex<0||!zones[popoverZoneIndex])return;zones[popoverZoneIndex][key]=value;draw();renderList()}
+function togglePopoverEmph(){if(popoverZoneIndex<0||!zones[popoverZoneIndex])return;zones[popoverZoneIndex].emphasized=!zones[popoverZoneIndex].emphasized;document.getElementById('pop-zone-emph').classList.toggle('on',zones[popoverZoneIndex].emphasized);draw();renderList()}
+function renderPopoverPhoto(){
+  const wrap=document.getElementById('pop-photo-wrap');
+  if(popoverZoneIndex<0||!zones[popoverZoneIndex]){wrap.innerHTML='';return}
+  const z=zones[popoverZoneIndex];
+  const safeName=(z.name||DEF_NAMES[popoverZoneIndex]||'zone').replace(/[\s/\\:*?"<>|]/g,'_');
+  const previewFileName='zone'+String(popoverZoneIndex+1).padStart(2,'0')+'_'+safeName+'.jpg';
+  wrap.innerHTML=z._photoData?`<div class="photo-preview"><img src="${z._photoData}" alt="preview"><div class="photo-preview-info"><div class="photo-preview-name">アップロード済み</div><div class="photo-preview-renamed">${z._photoName||''}</div></div><button class="photo-clear-btn" onclick="clearPhoto(popoverZoneIndex);renderPopoverPhoto()">×</button></div>`:`<div class="photo-drop-zone" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault();this.classList.remove('dragover');handlePopoverPhoto(event.dataTransfer.files[0])"><input type="file" accept="image/*" onchange="handlePopoverPhoto(this.files[0])"><div class="drop-hint">📁 クリック or ドラッグ&ドロップ<br><span>${previewFileName}</span> として保存</div></div>`;
+}
+function handlePopoverPhoto(file){if(popoverZoneIndex<0)return;handlePhotoUpload(popoverZoneIndex,file);setTimeout(()=>{renderPopoverPhoto();renderList();draw()},80)}
+
+cv.addEventListener('mousedown',e=>{if(e.button===2)return;hideCanvasMenu();const p=getPos(e);if(mode==='move'){for(let i=zones.length-1;i>=0;i--){const h=getHandle(zones[i],p);if(h){resizeIdx=i;resizeHandle=h;resizeOrigZ={...zones[i]};startX=p.x;startY=p.y;return}}const idx=hitZone(p);if(idx>=0){dragIdx=idx;dragOffX=p.x-zones[idx].x;dragOffY=p.y-zones[idx].y;cv.style.cursor='grabbing';return}return}drawing=true;startX=p.x;startY=p.y;currentRect=null});
 cv.addEventListener('mousemove',e=>{const p=getPos(e);if(resizeIdx>=0){const z=resizeOrigZ,dx=p.x-startX,dy=p.y-startY;let nx=z.x,ny=z.y,nw=z.w,nh=z.h;if(resizeHandle.includes('e'))nw=Math.max(20,z.w+dx);if(resizeHandle.includes('s'))nh=Math.max(20,z.h+dy);if(resizeHandle.includes('w')){nx=z.x+dx;nw=Math.max(20,z.w-dx)}if(resizeHandle.includes('n')){ny=z.y+dy;nh=Math.max(20,z.h-dy)}zones[resizeIdx]={...zones[resizeIdx],x:nx,y:ny,w:nw,h:nh};draw();return}if(dragIdx>=0){zones[dragIdx].x=Math.max(0,Math.min(cv.width-zones[dragIdx].w,p.x-dragOffX));zones[dragIdx].y=Math.max(0,Math.min(cv.height-zones[dragIdx].h,p.y-dragOffY));draw();return}if(mode==='move'){for(let i=zones.length-1;i>=0;i--){const h=getHandle(zones[i],p);if(h){cv.style.cursor=rCursor(h);return}}cv.style.cursor=hitZone(p)>=0?'grab':'default';return}if(!drawing)return;currentRect=norm(startX,startY,p.x-startX,p.y-startY);draw()});
 cv.addEventListener('mouseup',e=>{if(resizeIdx>=0){resizeIdx=-1;resizeHandle='';resizeOrigZ=null;return}if(dragIdx>=0){dragIdx=-1;cv.style.cursor='grab';return}if(!drawing)return;drawing=false;if(currentRect&&currentRect.w>15&&currentRect.h>15){zones.push({...currentRect,name:'',heading:'',description:'',image_prompt:'',context:'',emphasized:false,collapsed:false,showDetails:false,_photoName:null,_photoData:null,_imgEl:null});currentRect=null;draw();renderList()}else{currentRect=null;draw()}});
 cv.addEventListener('mouseleave',()=>{if(resizeIdx>=0){resizeIdx=-1;resizeHandle='';resizeOrigZ=null}if(dragIdx>=0)dragIdx=-1;if(drawing){drawing=false;currentRect=null;draw()}});
@@ -611,6 +794,8 @@ function generate(){
     lines.push('[!! CRITICAL PHOTO USAGE INSTRUCTIONS !!]');
     lines.push('You have been provided with actual photo files in a ZIP archive.');
     lines.push('These are REAL photographs taken specifically for this advertisement.');
+    lines.push('Treat every provided image as a mandatory source asset, not as inspiration or a loose reference.');
+    lines.push('Preserve the people, products, objects, colors, composition, and identity shown in each uploaded image.');
     lines.push('');
     lines.push('ABSOLUTE RULES — violation of any of these is unacceptable:');
     lines.push('  1. DO NOT generate, illustrate, or AI-create any image for zones that have a specified photo file.');
@@ -618,6 +803,8 @@ function generate(){
     lines.push('  3. COMPOSITE each photo directly into its designated zone in the layout.');
     lines.push('  4. The photos must appear as real photographs embedded in the final advertisement.');
     lines.push('  5. If a zone says [USE PHOTO FILE: "filename.jpg"], that file MUST appear in that exact position.');
+    lines.push('  6. Do not reinterpret, restyle, redraw, upscale into a different look, swap faces, change products, or invent substitute images.');
+    lines.push('  7. Cropping is allowed only when necessary to fit the assigned zone; keep the main subject recognizable and unchanged.');
     lines.push('');
     lines.push('Photo file assignments:');
     zones.forEach((z,i)=>{
@@ -677,8 +864,39 @@ function generate(){
   const zipBtn=document.getElementById('btn-zip');
   zipBtn.style.display=hasPhotos?'':'none';
   document.querySelectorAll('.side-tab').forEach((b,idx)=>{b.classList.toggle('active',idx===2)});
-  ['zones','settings','output'].forEach((t,idx)=>{document.getElementById('tab-'+t).style.display=idx===2?'':'none'});
+  ['zones','settings','output','saved'].forEach((t,idx)=>{document.getElementById('tab-'+t).style.display=idx===2?'':'none'});
 }
+
+function getSavedWorks(){try{return JSON.parse(localStorage.getItem('prompt_canvas_saves')||'[]')}catch{return []}}
+function setSavedWorks(items){localStorage.setItem('prompt_canvas_saves',JSON.stringify(items))}
+function currentSettings(){return {fmt:document.getElementById('fmt').value,style:document.getElementById('style').value,lighting:document.getElementById('lighting').value,color:document.getElementById('color').value,composition:document.getElementById('composition').value,camera:document.getElementById('camera').value,mood:document.getElementById('mood').value}}
+function applySettings(s){if(!s)return;['fmt','style','lighting','color','composition','camera','mood'].forEach(k=>{const el=document.getElementById(k);if(el&&s[k]!==undefined)el.value=s[k]});resizeCanvas()}
+function saveCurrentWork(){
+  const nameEl=document.getElementById('save-name');
+  const name=(nameEl?.value||'').trim()||'保存 '+new Date().toLocaleString();
+  const prompt=document.getElementById('output')?.textContent||'';
+  const items=getSavedWorks();
+  items.unshift({id:'save_'+Date.now(),name,created:new Date().toISOString(),settings:currentSettings(),zones:zones.map(z=>({...z,_imgEl:null})),prompt});
+  setSavedWorks(items.slice(0,60));
+  if(nameEl)nameEl.value='';renderSavedList();alert('保存しました');
+}
+function renderSavedList(){
+  const el=document.getElementById('saved-list');if(!el)return;
+  const items=getSavedWorks();
+  if(!items.length){el.innerHTML='<div class="empty-hint">保存履歴はまだありません</div>';return}
+  el.innerHTML=items.map(item=>`<div class="saved-card"><div class="saved-card-title">${escapeHtml(item.name)}</div><div class="saved-card-meta">${new Date(item.created).toLocaleString()} / ${(item.zones||[]).length}領域 / ${item.prompt?'プロンプトあり':'プロンプト未生成'}</div><div class="saved-card-actions"><button onclick="loadSavedWork('${item.id}')">読み込み</button><button onclick="copySavedPrompt('${item.id}')">プロンプトコピー</button><button onclick="deleteSavedWork('${item.id}')" class="danger">削除</button></div></div>`).join('');
+}
+function loadSavedWork(id){
+  const item=getSavedWorks().find(x=>x.id===id);if(!item)return;
+  if(zones.length&&!confirm('現在の領域を置き換えて保存データを読み込みますか？'))return;
+  applySettings(item.settings);zones=normalizeZonesToCanvas((item.zones||[]).map(z=>({...z,_imgEl:null})));draw();renderList();
+  if(item.prompt){document.getElementById('output').textContent=item.prompt;document.getElementById('output-wrap').style.display='block'}
+  switchTab('zones',document.querySelector('.side-tab'));
+}
+function copySavedPrompt(id){const item=getSavedWorks().find(x=>x.id===id);if(!item||!item.prompt){alert('保存されたプロンプトがありません');return}navigator.clipboard.writeText(item.prompt).then(()=>alert('プロンプトをコピーしました'))}
+function deleteSavedWork(id){if(!confirm('この保存履歴を削除しますか？'))return;setSavedWorks(getSavedWorks().filter(x=>x.id!==id));renderSavedList()}
+function escapeHtml(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
 function copyPrompt(){
   const t=document.getElementById('output').textContent;
   navigator.clipboard.writeText(t).then(()=>{
@@ -1131,6 +1349,39 @@ const BUILTIN_TEMPLATES = [
   },
 ];
 
+function makeFineZone(x,y,w,h,name,heading='',description='',emphasized=false){
+  return {x,y,w,h,name,heading,description,image_prompt:'',context:'fine editable template region',emphasized,collapsed:true,showDetails:false,_photoName:null,_photoData:null,_imgEl:null};
+}
+function addFineTemplateZones(tpl){
+  if(!tpl||!Array.isArray(tpl.zones))return;
+  const targetMin=20;
+  if(tpl.zones.length>=targetMin)return;
+  const maxX=Math.max(400,...tpl.zones.map(z=>z.x+z.w));
+  const maxY=Math.max(565,...tpl.zones.map(z=>z.y+z.h));
+  const hasName=name=>tpl.zones.some(z=>z.name===name);
+  const add=z=>{if(tpl.zones.length<targetMin&&!hasName(z.name))tpl.zones.push(z)};
+  const w=maxX,h=maxY;
+  add(makeFineZone(Math.max(8,w-92),8,84,28,'ロゴ/ブランド','ロゴ・ブランド名'));
+  add(makeFineZone(0,0,Math.max(8,Math.round(w*.025)),h,'左アクセント線',''));
+  add(makeFineZone(8,Math.max(8,h-92),90,24,'SNS/URL','@your_account'));
+  add(makeFineZone(Math.max(8,w-66),Math.max(8,h-66),58,58,'QRコード','QR'));
+  add(makeFineZone(Math.round(w*.28),Math.max(8,h-54),Math.round(w*.44),38,'CTAボタン','今すぐお問い合わせ',true));
+  add(makeFineZone(8,Math.max(8,h-26),Math.max(120,Math.round(w*.52)),18,'注意書き','※詳細はお問い合わせください'));
+  add(makeFineZone(Math.round(w*.05),Math.round(h*.19),34,34,'アイコン1',''));
+  add(makeFineZone(Math.round(w*.17),Math.round(h*.19),34,34,'アイコン2',''));
+  add(makeFineZone(Math.round(w*.29),Math.round(h*.19),34,34,'アイコン3',''));
+  add(makeFineZone(Math.round(w*.41),Math.round(h*.19),34,34,'アイコン4',''));
+  add(makeFineZone(Math.max(8,w-110),Math.round(h*.18),98,30,'限定バッジ','期間限定',true));
+  add(makeFineZone(Math.max(8,w-110),Math.round(h*.25),98,30,'特典バッジ','特典あり',true));
+  add(makeFineZone(8,Math.round(h*.58),Math.max(100,Math.round(w*.28)),36,'補足コピー1',''));
+  add(makeFineZone(Math.max(8,w-Math.round(w*.31)-8),Math.round(h*.58),Math.max(100,Math.round(w*.28)),36,'補足コピー2',''));
+  add(makeFineZone(Math.round(w*.08),Math.round(h*.72),Math.round(w*.2),38,'小情報1',''));
+  add(makeFineZone(Math.round(w*.31),Math.round(h*.72),Math.round(w*.2),38,'小情報2',''));
+  add(makeFineZone(Math.round(w*.54),Math.round(h*.72),Math.round(w*.2),38,'小情報3',''));
+  add(makeFineZone(Math.round(w*.77),Math.round(h*.72),Math.max(40,Math.round(w*.18)),38,'小情報4',''));
+}
+BUILTIN_TEMPLATES.forEach(t=>{addFineTemplateZones(t);t.zones=normalizeZonesToCanvas(t.zones,400,565)});
+
 // ── ジャンル一覧
 const GENRES = ['すべて', ...new Set(BUILTIN_TEMPLATES.map(t=>t.genre))];
 
@@ -1206,7 +1457,7 @@ function applyTemplate(id, isUser){
   if(isUser || !tpl.schema){
     const ok = zones.length===0 || confirm('現在の領域をすべて削除してテンプレートを読み込みますか？');
     if(!ok) return;
-    zones = tpl.zones.map(z=>({...z}));
+    zones = normalizeZonesToCanvas(tpl.zones.map(z=>({...z}))); 
     setMode('move'); draw(); renderList(); closeTplModal();
     return;
   }
@@ -1514,7 +1765,7 @@ function applyCfgToCanvas(){
     });
   });
 
-  zones = newZones;
+  zones = normalizeZonesToCanvas(newZones); 
   setMode('move');
   draw();
   renderList();
@@ -1551,6 +1802,13 @@ function collapseAll(){
 }
 
 
+</script>
+<script>
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
