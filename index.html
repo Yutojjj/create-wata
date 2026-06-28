@@ -2189,10 +2189,12 @@ function collapseAll(){
 
 </script>
 <script>
-if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+// Service Worker を無効化・既存のものを削除
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
   });
+  caches.keys().then(keys => keys.forEach(key => caches.delete(key)));
 }
 </script>
 </body>
