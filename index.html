@@ -356,13 +356,13 @@ canvas{display:block;cursor:crosshair}
     <div class="canvas-scroll">
       <div class="canvas-wrap"><canvas id="cv"></canvas></div>
       <div class="canvas-context-menu" id="canvas-context-menu">
-        <button onclick="ctxDrawMode()">描画に切替</button>
-        <button onclick="ctxMoveZone()">移動・サイズ変更に切替</button>
         <button class="zone-only" onclick="ctxEditZone()">領域編集</button>
         <button class="zone-only" onclick="ctxDuplicateZone()">複製</button>
         <button class="zone-only" onclick="ctxBringFront()">前面へ</button>
         <button class="zone-only" onclick="ctxSendBack()">背面へ</button>
         <button class="zone-only" onclick="ctxToggleEmph()">強調切替</button>
+        <button onclick="ctxDrawMode()">描画に切替</button>
+        <button onclick="ctxMoveZone()">移動・サイズ変更に切替</button>
         <button class="zone-only danger" onclick="ctxDeleteZone()">削除</button>
       </div>
       <div class="zone-popover" id="zone-popover">
