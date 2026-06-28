@@ -1,11 +1,23 @@
-const CACHE_NAME = "prompt-canvas-v4";
+const CACHE_NAME = "prompt-canvas-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/icon-maskable-512.png"
+  "./icons/icon-maskable-512.png",
+  "./template-previews/gakudo_kenies.png",
+  "./template-previews/gakudo_simple.png",
+  "./template-previews/juku_standard.png",
+  "./template-previews/super_weekly.png",
+  "./template-previews/super_new_open.png",
+  "./template-previews/restaurant_standard.png",
+  "./template-previews/cafe_new.png",
+  "./template-previews/realestate_sale.png",
+  "./template-previews/salon_campaign.png",
+  "./template-previews/event_fes.png",
+  "./template-previews/event_seminar.png",
+  "./template-previews/clinic_open.png"
 ];
 
 self.addEventListener("install", event => {
