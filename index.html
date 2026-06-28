@@ -175,7 +175,18 @@ canvas{display:block;cursor:crosshair}
 .output-wrap{display:none}
 .panel-sep{height:1px;background:var(--border);margin:10px 0}
 
-/* ── プロンプト生成モーダル ── */
+/* ── 保存名入力・確認モーダル共通 ── */
+.simple-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;justify-content:center;align-items:center;z-index:4000;backdrop-filter:blur(3px)}
+.simple-modal{background:#fff;border:1px solid var(--border2);border-radius:12px;width:min(420px,92vw);box-shadow:0 16px 50px rgba(0,0,0,.3);overflow:hidden}
+.simple-modal-header{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;font-weight:700;color:var(--text)}
+.simple-modal-body{padding:16px}
+.simple-modal-body input{width:100%;font-size:13px;padding:9px 11px;border:1px solid var(--border2);border-radius:7px;background:#fff;color:var(--text);outline:none}
+.simple-modal-body input:focus{border-color:var(--accent)}
+.simple-modal-body p{font-size:13px;color:var(--text2);line-height:1.6}
+.simple-modal-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:#f8fafc}
+
+/* ── トースト ── */
+#toast-msg{transition:opacity .4s}
 .prompt-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;justify-content:center;align-items:center;z-index:2500;backdrop-filter:blur(4px)}
 .prompt-modal-content{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:min(820px,96vw);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 70px rgba(0,0,0,.55)}
 .prompt-modal-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
@@ -399,6 +410,35 @@ canvas{display:block;cursor:crosshair}
 
 <!-- hidden save-name input used by saveCurrentWork -->
 <input type="text" id="save-name" style="display:none">
+
+<!-- ===== 保存名入力モーダル ===== -->
+<div id="save-name-modal" class="simple-modal-overlay">
+  <div class="simple-modal">
+    <div class="simple-modal-header">保存名を入力</div>
+    <div class="simple-modal-body">
+      <input type="text" id="save-name-modal-input" placeholder="例: 春キャンペーンA案"
+        onkeydown="if(event.key==='Enter')confirmSaveName()">
+    </div>
+    <div class="simple-modal-actions">
+      <button class="topbar-btn" onclick="closeSaveNameModal()">キャンセル</button>
+      <button class="topbar-btn primary" onclick="confirmSaveName()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== テンプレ保存確認モーダル ===== -->
+<div id="save-confirm-modal" class="simple-modal-overlay">
+  <div class="simple-modal">
+    <div class="simple-modal-header">保存しました</div>
+    <div class="simple-modal-body">
+      <p>テンプレートにも保存しますか？<br>生成した画像をアップロードしてテンプレ一覧に表示できます。</p>
+    </div>
+    <div class="simple-modal-actions">
+      <button class="topbar-btn" onclick="closeSaveConfirm()">しない</button>
+      <button class="topbar-btn primary" onclick="confirmSaveToTemplate()">テンプレにも保存</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===== プロンプト生成モーダル ===== -->
 <div id="prompt-modal" class="prompt-modal-overlay">
@@ -1084,16 +1124,52 @@ function saveCurrentWork(askTemplate=true){
   const items=getSavedWorks();
   items.unshift({id:'save_'+Date.now(),name,created:new Date().toISOString(),settings:currentSettings(),zones:zones.map(z=>({...z,_imgEl:null})),prompt});
   setSavedWorks(items.slice(0,60));
-  if(nameEl)nameEl.value='';renderSavedList();alert('保存しました');
-  if(askTemplate&&zones.length&&confirm('テンプレにも保存しますか？'))openTemplateSaveModal(name);
+  if(nameEl)nameEl.value='';renderSavedList();
+  if(askTemplate&&zones.length){
+    showSaveConfirm(name);
+  } else {
+    showToast('保存しました');
+  }
 }
 function saveCurrentWorkFromHeader(){
   const defaultName='保存 '+new Date().toLocaleString();
-  const name=prompt('保存名を入力してください',defaultName);
-  if(name===null)return;
+  const nameInput=document.getElementById('header-save-name-input');
+  openSaveNameModal(defaultName);
+}
+function openSaveNameModal(defaultName){
+  document.getElementById('save-name-modal-input').value=defaultName;
+  document.getElementById('save-name-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('save-name-modal-input').select(),50);
+}
+function closeSaveNameModal(){
+  document.getElementById('save-name-modal').style.display='none';
+}
+function confirmSaveName(){
+  const val=document.getElementById('save-name-modal-input').value.trim();
+  const defaultName='保存 '+new Date().toLocaleString();
   const nameEl=document.getElementById('save-name');
-  if(nameEl)nameEl.value=(name.trim()||defaultName);
+  if(nameEl)nameEl.value=val||defaultName;
+  closeSaveNameModal();
   saveCurrentWork();
+}
+function showSaveConfirm(savedName){
+  document.getElementById('save-confirm-modal').style.display='flex';
+  document.getElementById('save-confirm-modal')._savedName=savedName;
+}
+function closeSaveConfirm(){
+  document.getElementById('save-confirm-modal').style.display='none';
+}
+function confirmSaveToTemplate(){
+  const modal=document.getElementById('save-confirm-modal');
+  const savedName=modal._savedName||'';
+  closeSaveConfirm();
+  openTemplateSaveModal(savedName);
+}
+function showToast(msg){
+  let t=document.getElementById('toast-msg');
+  if(!t){t=document.createElement('div');t.id='toast-msg';t.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.3);pointer-events:none';document.body.appendChild(t)}
+  t.textContent=msg;t.style.opacity='1';
+  clearTimeout(t._timer);t._timer=setTimeout(()=>{t.style.opacity='0'},2000);
 }
 function renderSavedList(){
   const el=document.getElementById('saved-list');if(!el)return;
