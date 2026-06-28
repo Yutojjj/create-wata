@@ -579,10 +579,6 @@ canvas{display:block;cursor:crosshair}
         </div>
       </div>
     </div>
-    <div class="tpl-save-row">
-      <input type="text" id="tpl-save-name" placeholder="現在の状態をテンプレとして保存（名前を入力）">
-      <button class="btn-save-tpl" onclick="saveCurrentAsTpl()">保存</button>
-    </div>
   </div>
 </div>
 
@@ -683,10 +679,9 @@ function closeHistoryModal(){
 }
 function saveFromHistoryModal(){
   const nameEl=document.getElementById('history-save-name');
-  const saveNameEl=document.getElementById('save-name');
-  if(saveNameEl&&nameEl)saveNameEl.value=nameEl.value;
-  saveCurrentWork();
+  const name=(nameEl?.value||'').trim()||'保存 '+new Date().toLocaleString();
   if(nameEl)nameEl.value='';
+  saveCurrentWorkWithName(name);
 }
 document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.dynamic-select').forEach(sel=>{
@@ -1147,10 +1142,21 @@ function closeSaveNameModal(){
 function confirmSaveName(){
   const val=document.getElementById('save-name-modal-input').value.trim();
   const defaultName='保存 '+new Date().toLocaleString();
-  const nameEl=document.getElementById('save-name');
-  if(nameEl)nameEl.value=val||defaultName;
+  const finalName=val||defaultName;
   closeSaveNameModal();
-  saveCurrentWork();
+  saveCurrentWorkWithName(finalName);
+}
+function saveCurrentWorkWithName(name){
+  const prompt=document.getElementById('output')?.textContent||'';
+  const items=getSavedWorks();
+  items.unshift({id:'save_'+Date.now(),name,created:new Date().toISOString(),settings:currentSettings(),zones:zones.map(z=>({...z,_imgEl:null})),prompt});
+  setSavedWorks(items.slice(0,60));
+  renderSavedList();
+  if(zones.length){
+    showSaveConfirm(name);
+  } else {
+    showToast('保存しました');
+  }
 }
 function showSaveConfirm(savedName){
   document.getElementById('save-confirm-modal').style.display='flex';
