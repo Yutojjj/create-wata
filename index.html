@@ -440,6 +440,18 @@ canvas{display:block;cursor:crosshair}
   </div>
 </div>
 
+<!-- ===== 汎用確認モーダル ===== -->
+<div id="generic-confirm-modal" class="simple-modal-overlay">
+  <div class="simple-modal">
+    <div class="simple-modal-header" id="generic-confirm-title">確認</div>
+    <div class="simple-modal-body"><p id="generic-confirm-msg"></p></div>
+    <div class="simple-modal-actions">
+      <button class="topbar-btn" onclick="closeGenericConfirm()">キャンセル</button>
+      <button class="topbar-btn primary" id="generic-confirm-ok" onclick="closeGenericConfirm()">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== プロンプト生成モーダル ===== -->
 <div id="prompt-modal" class="prompt-modal-overlay">
   <div class="prompt-modal-content">
@@ -853,7 +865,7 @@ function ctxDuplicateZone(){if(ctxZoneIndex<0)return;const z={...zones[ctxZoneIn
 function ctxBringFront(){if(ctxZoneIndex<0)return;const[z]=zones.splice(ctxZoneIndex,1);zones.push(z);draw();renderList();hideCanvasMenu()}
 function ctxSendBack(){if(ctxZoneIndex<0)return;const[z]=zones.splice(ctxZoneIndex,1);zones.unshift(z);draw();renderList();hideCanvasMenu()}
 function ctxToggleEmph(){if(ctxZoneIndex<0)return;zones[ctxZoneIndex].emphasized=!zones[ctxZoneIndex].emphasized;draw();renderList();if(popoverZoneIndex===ctxZoneIndex)openZonePopover(ctxZoneIndex,lastCtxX,lastCtxY);hideCanvasMenu()}
-function ctxDeleteZone(){const i=ctxZoneIndex>=0?ctxZoneIndex:popoverZoneIndex;if(i<0)return;if(confirm('この領域を削除しますか？')){delZone(i);closeZonePopover()}hideCanvasMenu()}
+function ctxDeleteZone(){const i=ctxZoneIndex>=0?ctxZoneIndex:popoverZoneIndex;if(i<0)return;hideCanvasMenu();showConfirm('この領域を削除しますか？',()=>{delZone(i);closeZonePopover()},'領域の削除');}
 
 function closeZonePopover(){zonePopover.style.display='none';popoverZoneIndex=-1}
 function openZonePopover(i,x=window.innerWidth/2,y=120){
@@ -1171,6 +1183,16 @@ function confirmSaveToTemplate(){
   closeSaveConfirm();
   openTemplateSaveModal(savedName);
 }
+function showConfirm(msg, onOk, title='確認'){
+  document.getElementById('generic-confirm-title').textContent=title;
+  document.getElementById('generic-confirm-msg').textContent=msg;
+  const btn=document.getElementById('generic-confirm-ok');
+  btn.onclick=()=>{closeGenericConfirm();onOk()};
+  document.getElementById('generic-confirm-modal').style.display='flex';
+}
+function closeGenericConfirm(){
+  document.getElementById('generic-confirm-modal').style.display='none';
+}
 function showToast(msg){
   let t=document.getElementById('toast-msg');
   if(!t){t=document.createElement('div');t.id='toast-msg';t.style.cssText='position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 22px;border-radius:8px;font-size:13px;z-index:9999;box-shadow:0 4px 18px rgba(0,0,0,.3);pointer-events:none';document.body.appendChild(t)}
@@ -1185,13 +1207,15 @@ function renderSavedList(){
 }
 function loadSavedWork(id){
   const item=getSavedWorks().find(x=>x.id===id);if(!item)return;
-  if(zones.length&&!confirm('現在の領域を置き換えて保存データを読み込みますか？'))return;
-  applySettings(item.settings);zones=normalizeZonesToCanvas((item.zones||[]).map(z=>({...z,_imgEl:null})));draw();renderList();
-  if(item.prompt){document.getElementById('output').textContent=item.prompt;document.getElementById('output-wrap')&&(document.getElementById('output-wrap').style.display='block')}
-  closeHistoryModal();
+  const doLoad=()=>{
+    applySettings(item.settings);zones=normalizeZonesToCanvas((item.zones||[]).map(z=>({...z,_imgEl:null})));draw();renderList();
+    if(item.prompt){document.getElementById('output').textContent=item.prompt;}
+    closeHistoryModal();
+  };
+  if(zones.length){showConfirm('現在の領域を置き換えて保存データを読み込みますか？',doLoad,'読み込み確認')}else{doLoad()}
 }
-function copySavedPrompt(id){const item=getSavedWorks().find(x=>x.id===id);if(!item||!item.prompt){alert('保存されたプロンプトがありません');return}navigator.clipboard.writeText(item.prompt).then(()=>alert('プロンプトをコピーしました'))}
-function deleteSavedWork(id){if(!confirm('この保存履歴を削除しますか？'))return;setSavedWorks(getSavedWorks().filter(x=>x.id!==id));renderSavedList()}
+function copySavedPrompt(id){const item=getSavedWorks().find(x=>x.id===id);if(!item||!item.prompt){showToast('保存されたプロンプトがありません');return}navigator.clipboard.writeText(item.prompt).then(()=>showToast('プロンプトをコピーしました'))}
+function deleteSavedWork(id){showConfirm('この保存履歴を削除しますか？',()=>{setSavedWorks(getSavedWorks().filter(x=>x.id!==id));renderSavedList()},'削除の確認')}
 function escapeHtml(s){return String(s||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
 
 let pendingTemplatePreviewData='';
@@ -1231,8 +1255,8 @@ function handleTemplatePreviewUpload(file){
 }
 function confirmSaveTemplateFromModal(){
   const name=document.getElementById('template-save-name').value.trim();
-  if(!name){alert('テンプレート名を入力してください');return}
-  if(!zones.length){alert('領域がありません');return}
+  if(!name){showToast('テンプレート名を入力してください');return}
+  if(!zones.length){showToast('領域がありません');return}
   const arr=loadUserTpls();
   arr.unshift({
     id:'user_'+Date.now(),
@@ -1244,7 +1268,7 @@ function confirmSaveTemplateFromModal(){
   });
   saveUserTpls(arr.slice(0,40));
   closeTemplateSaveModal();
-  alert('テンプレートに保存しました');
+  showToast('テンプレートに保存しました');
   tplActiveGenre='保存済み';
   renderTplTabs();
   renderTplGrid();
@@ -1259,10 +1283,10 @@ function copyPrompt(){
 }
 async function downloadZip(){
   const photos=zones.filter(z=>z._photoData&&z._photoName);
-  if(!photos.length){alert('写真がアップロードされていません');return}
+  if(!photos.length){showToast('写真がアップロードされていません');return}
   const btn=document.getElementById('btn-zip');
   const status=document.getElementById('zip-status');
-  btn.textContent='⏳ 作成中...';btn.disabled=true;
+  btn.textContent='作成中...';btn.disabled=true;
   try{
     if(!window.JSZip){
       await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
@@ -1273,7 +1297,7 @@ async function downloadZip(){
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ad_photos.zip';a.click();
     status.innerHTML='<div class="zip-badge">'+photos.length+'枚の写真をZIPにまとめました</div>';
     setTimeout(()=>{status.innerHTML=''},4000);
-  }catch(e){alert('ZIPの作成に失敗: '+e.message)}
+  }catch(e){showToast('ZIPの作成に失敗: '+e.message)}
   btn.textContent='写真をZIPでダウンロード';btn.disabled=false;
 }
 
@@ -1846,10 +1870,8 @@ function applyTemplate(id, isUser){
   if(!tpl) return;
   // ユーザー保存テンプレはschemaなし→直接適用
   if(isUser || !tpl.schema){
-    const ok = zones.length===0 || confirm('現在の領域をすべて削除してテンプレートを読み込みますか？');
-    if(!ok) return;
-    zones = normalizeZonesToCanvas(tpl.zones.map(z=>({...z}))); 
-    setMode('move'); draw(); renderList(); closeTplModal();
+    const doLoad=()=>{zones=normalizeZonesToCanvas(tpl.zones.map(z=>({...z})));setMode('move');draw();renderList();closeTplModal()};
+    if(zones.length===0){doLoad()}else{showConfirm('現在の領域をすべて削除してテンプレートを読み込みますか？',doLoad,'テンプレートの読み込み')}
     return;
   }
   // schema付き→詳細設定画面へ
@@ -2019,10 +2041,11 @@ function getCfgEmph(key){ const el=document.getElementById('cfg-emph-'+key); ret
 // ── 設定をゾーンに反映
 function applyCfgToCanvas(){
   if(!_cfgTpl) return;
-  const ok = zones.length===0 || confirm('現在の領域をすべて削除してテンプレートを読み込みますか？');
-  if(!ok) return;
-
-  // ── ベースゾーンをコピー
+  if(zones.length===0){_applyCfgToCanvasCore()}
+  else{showConfirm('現在の領域をすべて削除してテンプレートを読み込みますか？',_applyCfgToCanvasCore,'テンプレートの読み込み')}
+}
+function _applyCfgToCanvasCore(){
+  if(!_cfgTpl) return;
   const newZones = _cfgTpl.zones.map(z=>({...z}));
   const schema = _cfgTpl.schema;
 
@@ -2173,15 +2196,14 @@ function deleteUserTpl(id){
 }
 
 function saveCurrentAsTpl(){
-  const name = document.getElementById('tpl-save-name').value.trim();
-  if(!name){ alert('テンプレート名を入力してください'); return; }
-  if(!zones.length){ alert('領域がありません'); return; }
+  const name = document.getElementById('tpl-save-name')?.value.trim();
+  if(!name){ showToast('テンプレート名を入力してください'); return; }
+  if(!zones.length){ showToast('領域がありません'); return; }
   const arr = loadUserTpls();
   const id = 'user_' + Date.now();
   arr.push({id, name, desc:'自分で作成したテンプレート', genre:'カスタム', zones: zones.map(z=>({...z}))});
   saveUserTpls(arr);
-  document.getElementById('tpl-save-name').value='';
-  alert('テンプレートを保存しました！');
+  showToast('テンプレートを保存しました');
   renderTplTabs();
   renderTplGrid();
 }
