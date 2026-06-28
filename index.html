@@ -279,6 +279,7 @@ canvas{display:block;cursor:crosshair}
       <option value="card">名刺（横）</option>
     </select>
   </div>
+  <button class="topbar-btn primary" onclick="saveCurrentWorkFromHeader()">保存</button>
   <button class="topbar-btn danger" onclick="clearAll()">全消去</button>
 </div>
 
@@ -289,6 +290,7 @@ canvas{display:block;cursor:crosshair}
       <div class="canvas-wrap"><canvas id="cv"></canvas></div>
       <div class="canvas-context-menu" id="canvas-context-menu">
         <button onclick="ctxDrawMode()">描画に切替</button>
+        <button onclick="ctxMoveZone()">移動・サイズ変更に切替</button>
         <button class="zone-only" onclick="ctxEditZone()">領域編集</button>
         <button class="zone-only" onclick="ctxDuplicateZone()">複製</button>
         <button class="zone-only" onclick="ctxBringFront()">前面へ</button>
@@ -301,11 +303,11 @@ canvas{display:block;cursor:crosshair}
           <button class="zone-toggle" onclick="closeZonePopover()">×</button>
           <div class="zone-dot" id="pop-zone-dot"></div>
           <span class="zone-num" id="pop-zone-num"></span>
-          <input class="zone-name-input" id="pop-zone-name" placeholder="領域名" oninput="updatePopoverZone('name',this.value)">
+          <input class="zone-name-input" id="pop-zone-name" placeholder="タイトルを入力" oninput="updatePopoverZone('name',this.value)">
           <button class="zone-emph-btn" id="pop-zone-emph" onclick="togglePopoverEmph()">★</button>
         </div>
         <div class="zone-popover-body">
-          <div class="zone-field"><label>見出し・テキスト</label><input type="text" id="pop-zone-heading" placeholder="例: 春のキャンペーン開催中！" oninput="updatePopoverZone('heading',this.value)"></div>
+          <div class="zone-field"><label>見出し・テキスト</label><textarea rows="2" id="pop-zone-heading" placeholder="例: 笑顔あふれる&#10;学童クラブ" oninput="updatePopoverZone('heading',this.value)"></textarea></div>
           <div class="zone-field"><label>説明・詳細</label><textarea rows="3" id="pop-zone-description" placeholder="例: 商品特徴、価格など" oninput="updatePopoverZone('description',this.value)"></textarea></div>
           <div class="zone-field"><label>使用写真</label><div class="photo-upload-wrap" id="pop-photo-wrap"></div></div>
           <div class="zone-field"><label>画像プロンプト・補足</label><textarea rows="2" id="pop-zone-image-prompt" placeholder="例: 笑顔の子供たち、明るい教室" oninput="updatePopoverZone('image_prompt',this.value)"></textarea></div>
@@ -402,7 +404,7 @@ canvas{display:block;cursor:crosshair}
       </div>
       <div class="field">
         <label>雰囲気・ターゲット（自由入力）</label>
-        <input type="text" id="mood" placeholder="例: 子ども向け, 高級感, 清潔感">
+        <textarea rows="2" id="mood" placeholder="例: 子ども向け&#10;高級感, 清潔感"></textarea>
       </div>
     </div>
 
@@ -523,7 +525,15 @@ function setMode(m){
   document.getElementById('btn-move').classList.toggle('active',m==='move');
   cv.style.cursor=m==='draw'?'crosshair':'default';
 }
-function resizeCanvas(){const f=FMT[document.getElementById('fmt').value];cv.width=f.w;cv.height=f.h;clearAll()}
+function updateCanvasDisplay(){
+  const area=document.querySelector('.canvas-scroll');
+  const availableW=Math.max(260,(area?area.clientWidth:window.innerWidth)-56);
+  const desired=window.innerWidth>=1100?1.24:1.08;
+  const scale=Math.min(desired,availableW/cv.width);
+  cv.style.width=Math.round(cv.width*scale)+'px';
+  cv.style.height=Math.round(cv.height*scale)+'px';
+}
+function resizeCanvas(){const f=FMT[document.getElementById('fmt').value];cv.width=f.w;cv.height=f.h;updateCanvasDisplay();clearAll()}
 resizeCanvas();
 function norm(x,y,w,h){return w<0?(h<0?{x:x+w,y:y+h,w:-w,h:-h}:{x:x+w,y:y,w:-w,h:h}):(h<0?{x:x,y:y+h,w:w,h:-h}:{x,y,w,h})}
 function getHandle(z,p){
@@ -535,10 +545,14 @@ function rCursor(h){return{nw:'nw-resize',ne:'ne-resize',sw:'sw-resize',se:'se-r
 function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
 function truncateText(text,max){text=String(text||'').replace(/\s+/g,' ').trim();return text.length>max?text.slice(0,Math.max(0,max-1))+'…':text}
 function drawWrappedText(text,x,y,maxW,lineH,maxLines){
-  const chars=String(text||'').replace(/\n/g,' ').split('');
-  let line='',lines=[];
-  chars.forEach(ch=>{const test=line+ch;if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=ch}else line=test});
-  if(line)lines.push(line);
+  let lines=[];
+  String(text||'').split(/\r?\n/).forEach(part=>{
+    const chars=part.split('');
+    let line='';
+    chars.forEach(ch=>{const test=line+ch;if(ctx.measureText(test).width>maxW&&line){lines.push(line);line=ch}else line=test});
+    lines.push(line);
+  });
+  lines=lines.filter((ln,i)=>ln||i===0);
   if(lines.length>maxLines){lines=lines.slice(0,maxLines);lines[lines.length-1]=truncateText(lines[lines.length-1],Math.max(1,Math.floor(maxW/7)))}
   lines.forEach((ln,i)=>ctx.fillText(ln,x,y+i*lineH));
   return lines.length*lineH;
@@ -579,7 +593,7 @@ function draw(){
     ctx.fillStyle='rgba(255,255,255,.88)';ctx.fillRect(z.x+4,z.y+4,Math.max(18,Math.min(z.w-8,165)),16);
     ctx.fillStyle=c;ctx.fillRect(z.x+4,z.y+4,3,16);
     ctx.fillStyle='#0f172a';ctx.font='bold 10px sans-serif';
-    const lbl=(i+1)+'. '+(z.name||DEF_NAMES[i]||'エリア'+(i+1));
+    const lbl=(i+1)+'. '+(z.name||'タイトルを入力');
     ctx.fillText(truncateText(lbl,Math.max(4,Math.floor((z.w-18)/6))),z.x+10,z.y+16);
     let ty=z.y+32;
     if(z.heading&&String(z.heading).trim()){
@@ -621,9 +635,9 @@ cv.addEventListener('contextmenu',e=>{
   showCanvasMenu(e,idx);
 });
 document.addEventListener('click',e=>{if(!canvasMenu.contains(e.target))hideCanvasMenu()});
-window.addEventListener('resize',hideCanvasMenu);
+window.addEventListener('resize',()=>{hideCanvasMenu();updateCanvasDisplay()});
 function ctxDrawMode(){setMode('draw');hideCanvasMenu();closeZonePopover()}
-function ctxMoveZone(){if(ctxZoneIndex<0&&popoverZoneIndex<0)return;setMode('move');hideCanvasMenu();closeZonePopover()}
+function ctxMoveZone(){setMode('move');hideCanvasMenu();closeZonePopover()}
 function ctxEditZone(){if(ctxZoneIndex<0)return;openZonePopover(ctxZoneIndex,lastCtxX,lastCtxY);hideCanvasMenu()}
 function ctxDuplicateZone(){if(ctxZoneIndex<0)return;const z={...zones[ctxZoneIndex],x:Math.min(cv.width-zones[ctxZoneIndex].w,zones[ctxZoneIndex].x+12),y:Math.min(cv.height-zones[ctxZoneIndex].h,zones[ctxZoneIndex].y+12),name:(zones[ctxZoneIndex].name||DEF_NAMES[ctxZoneIndex]||'Zone')+' copy',_photoName:null,_photoData:null,_imgEl:null};zones.splice(ctxZoneIndex+1,0,z);draw();renderList();hideCanvasMenu()}
 function ctxBringFront(){if(ctxZoneIndex<0)return;const[z]=zones.splice(ctxZoneIndex,1);zones.push(z);draw();renderList();hideCanvasMenu()}
@@ -706,7 +720,7 @@ function renderList(){
         <button class="zone-toggle" onclick="toggleCollapse(${i})">▼</button>
         <div class="zone-dot" style="background:${COLORS[i%COLORS.length]}"></div>
         <span class="zone-num">${i+1}</span>
-        <input class="zone-name-input" placeholder="${DEF_NAMES[i]||'エリア名'}"
+        <input class="zone-name-input" placeholder="タイトルを入力"
           value="${(z.name||'').replace(/"/g,'&quot;')}"
           oninput="zones[${i}].name=this.value;draw()">
         <div class="zone-actions">
@@ -717,9 +731,8 @@ function renderList(){
       <div class="zone-body">
         <div class="zone-field">
           <label>見出し・テキスト</label>
-          <input type="text" placeholder="例: 春のキャンペーン開催中！"
-            value="${(z.heading||'').replace(/"/g,'&quot;')}"
-            oninput="zones[${i}].heading=this.value;draw()">
+          <textarea rows="2" placeholder="例: 笑顔あふれる&#10;学童クラブ"
+            oninput="zones[${i}].heading=this.value;draw()">${escapeHtml(z.heading||'')}</textarea>
         </div>
         <div class="zone-field">
           <label>説明・詳細</label>
@@ -771,6 +784,20 @@ function renderList(){
 function delZone(i){zones.splice(i,1);draw();renderList()}
 function clearAll(){zones=[];currentRect=null;draw();renderList();document.getElementById('output-wrap').style.display='none'}
 function collapseAll(){zones.forEach(z=>z.collapsed=true);renderList()}
+function pushMultilineField(lines,label,value,indent='',exact=false){
+  const text=String(value||'').trim();
+  if(!text)return;
+  const hasBreak=/\r?\n/.test(text);
+  if(hasBreak){
+    lines.push(indent+label+':');
+    lines.push(indent+'"""');
+    text.split(/\r?\n/).forEach(line=>lines.push(indent+line));
+    lines.push(indent+'"""');
+    lines.push(indent+(exact?'Preserve the line breaks above exactly when rendering this text.':'Preserve the manual line breaks above as part of the instruction.'));
+  }else{
+    lines.push(indent+label+': '+(exact?'"'+text+'"':text)+(exact?' (Must be rendered perfectly without typos or mutations)':''));
+  }
+}
 function generate(){
   const fmtKey=document.getElementById('fmt').value;
   const styleVal=document.getElementById('style').value;
@@ -786,7 +813,7 @@ function generate(){
   lines.push(STYLE_MAP[styleVal]);lines.push(LIGHT_MAP[lightVal]);lines.push(COLOR_MAP[colorVal]);
   if(compVal)lines.push(COMP_MAP[compVal]);
   if(camVal)lines.push(CAMERA_MAP[camVal]);
-  if(mood)lines.push('Target / mood: '+mood);
+  pushMultilineField(lines,'Target / mood',mood);
   lines.push('');
   const hasPhotos=zones.some(z=>z._photoName);
   if(hasPhotos){
@@ -827,9 +854,9 @@ function generate(){
         } else if(z.image_prompt){
           lines.push('    Image/Subject: '+z.image_prompt);
         }
-        if(z.heading)lines.push('    Exact Text to Render: "'+z.heading+'" (Must be rendered perfectly without typos or mutations)');
-        if(z.description)lines.push('    Details: '+z.description);
-        if(z.context)lines.push('    Context/Note: '+z.context);
+        pushMultilineField(lines,'Exact Text to Render',z.heading,'    ',true);
+        pushMultilineField(lines,'Details',z.description,'    ');
+        pushMultilineField(lines,'Context/Note',z.context,'    ');
       });lines.push('');
     }
     const norm2=zones.filter(z=>!z.emphasized);
@@ -843,12 +870,12 @@ function generate(){
         } else if(z.image_prompt){
           lines.push('    Image/Subject: '+z.image_prompt);
         }
-        if(z.heading)lines.push('    Exact Text to Render: "'+z.heading+'" (Must be rendered perfectly without typos or mutations)');
-        if(z.description)lines.push('    Details: '+z.description);
-        if(z.context)lines.push('    Context/Note: '+z.context);
+        pushMultilineField(lines,'Exact Text to Render',z.heading,'    ',true);
+        pushMultilineField(lines,'Details',z.description,'    ');
+        pushMultilineField(lines,'Context/Note',z.context,'    ');
       });
     }
-    if(zones.some(z=>z.heading)){lines.push('');lines.push('[TYPOGRAPHY & TEXT RENDERING]');lines.push('CRITICAL INSTRUCTION: The specified text MUST be rendered exactly as requested.');lines.push('Ensure all typography is crisp, legible, and perfectly formed.')}
+    if(zones.some(z=>z.heading)){lines.push('');lines.push('[TYPOGRAPHY & TEXT RENDERING]');lines.push('CRITICAL INSTRUCTION: The specified text MUST be rendered exactly as requested.');lines.push('Manual line breaks inside Exact Text to Render blocks are intentional and must be preserved.');lines.push('Ensure all typography is crisp, legible, and perfectly formed.')}
   }else{lines.push('[LAYOUT]');lines.push('Balanced composition with clear space.')}
   lines.push('');
   if(hasPhotos){
@@ -879,6 +906,14 @@ function saveCurrentWork(){
   items.unshift({id:'save_'+Date.now(),name,created:new Date().toISOString(),settings:currentSettings(),zones:zones.map(z=>({...z,_imgEl:null})),prompt});
   setSavedWorks(items.slice(0,60));
   if(nameEl)nameEl.value='';renderSavedList();alert('保存しました');
+}
+function saveCurrentWorkFromHeader(){
+  const defaultName='保存 '+new Date().toLocaleString();
+  const name=prompt('保存名を入力してください',defaultName);
+  if(name===null)return;
+  const nameEl=document.getElementById('save-name');
+  if(nameEl)nameEl.value=(name.trim()||defaultName);
+  saveCurrentWork();
 }
 function renderSavedList(){
   const el=document.getElementById('saved-list');if(!el)return;
@@ -1497,7 +1532,7 @@ function renderCfgBody(tpl){
       if(f.type === 'text'){
         html += `<div class="cfg-field">
           <label>${f.label}</label>
-          <input type="text" id="cfg-f-${f.key}" placeholder="${f.placeholder||''}" value="${val.replace(/"/g,'&quot;')}">
+          <textarea id="cfg-f-${f.key}" rows="${f.rows||2}" placeholder="${f.placeholder||''}">${escapeHtml(val)}</textarea>
           ${f.canEmphasize ? emphToggle(f.key, f.emphasized) : ''}
         </div>`;
       } else if(f.type === 'textarea'){
@@ -1511,7 +1546,7 @@ function renderCfgBody(tpl){
         f.cols.forEach(col => {
           html += `<div class="cfg-field">
             <label>${col.label}</label>
-            <input type="text" id="cfg-f-${col.key}" placeholder="${col.placeholder||''}" value="${(col.default||'').replace(/"/g,'&quot;')}">
+            <textarea id="cfg-f-${col.key}" rows="${col.rows||2}" placeholder="${col.placeholder||''}">${escapeHtml(col.default||'')}</textarea>
           </div>`;
         });
         html += `</div>`;
@@ -1558,8 +1593,8 @@ function dynItemHTML(key, idx, item, subfield, canEmph, isEmph){
   return `<div class="dyn-item${isEmph?' emphasized-item':''}" id="dyn-${key}-${idx}">
     <span class="dyn-item-num">${idx+1}</span>
     <div class="dyn-item-fields">
-      <input type="text" placeholder="見出し・タイトル" value="${mainVal.replace(/"/g,'&quot;')}" data-dyn="${key}" data-idx="${idx}" data-role="heading">
-      ${subfield ? `<textarea rows="2" placeholder="${subfield}" data-dyn="${key}" data-idx="${idx}" data-role="desc">${subVal}</textarea>` : ''}
+      <textarea rows="2" placeholder="見出し・タイトル" data-dyn="${key}" data-idx="${idx}" data-role="heading">${escapeHtml(mainVal)}</textarea>
+      ${subfield ? `<textarea rows="2" placeholder="${subfield}" data-dyn="${key}" data-idx="${idx}" data-role="desc">${escapeHtml(subVal)}</textarea>` : ''}
     </div>
     <div class="dyn-item-controls">
       ${canEmph ? `<button class="dyn-emph-btn${isEmph?' on':''}" onclick="toggleDynEmph('${key}',${idx},this)" title="強調">★</button>` : ''}

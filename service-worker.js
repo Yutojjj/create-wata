@@ -1,7 +1,7 @@
-const CACHE_NAME = "prompt-canvas-v1";
+const CACHE_NAME = "prompt-canvas-v2";
 const APP_SHELL = [
   "./",
-  "./sasa.html",
+  "./index.html",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

@@ -2,7 +2,7 @@
   "name": "PromptCanvas",
   "short_name": "PromptCanvas",
   "description": "広告・画像生成用のレイアウト付きプロンプト作成アプリ",
-  "start_url": "./sasa.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#eef3f8",

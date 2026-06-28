@@ -14,7 +14,7 @@ const types = {
 
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(req.url.split("?")[0]);
-  const relative = urlPath === "/" ? "sasa.html" : urlPath.replace(/^\/+/, "");
+  const relative = urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "");
   const filePath = path.resolve(root, relative);
 
   if (!filePath.startsWith(root)) {
